@@ -1,0 +1,13 @@
+version: '1.0.0'
+
+services:
+  app:
+    build: .
+    networks:
+      - genesis-network
+    ports:
+      - "8080:3001"
+    container_name: react-app
+networks:
+  genesis-network:
+    external: true

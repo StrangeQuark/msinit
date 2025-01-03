@@ -1,0 +1,13 @@
+version: '1.0.0'
+
+services:
+  app:
+    build: .
+    networks:
+      - "genesis-network"
+    ports:
+      - "3000:3000"
+    container_name: express-app
+networks:
+  genesis-network:
+    external: true
