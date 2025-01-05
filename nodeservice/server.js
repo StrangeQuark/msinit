@@ -147,18 +147,6 @@ app.post('/batch-download', async (req, res) => {
         }
     }
 
-    // Add additional files (e.g., Python script, batch files)
-    try {
-        const dockerLaunch = await fs.readFile('./scripts/windows/docker_launch.bat', 'utf-8');
-        const extractSetupCleanup = await fs.readFile('./scripts/windows/extract_setup_cleanup.bat', 'utf-8');
-
-        zip.file('docker_launch.bat', dockerLaunch);
-        zip.file('extract_setup_cleanup.bat', extractSetupCleanup);
-    } catch (error) {
-        console.error(`Error reading batch files: ${error.message}`);
-        return res.status(500).send('Failed to read batch files');
-    }
-
     // Generate the combined ZIP and send it to the client
     zip.generateAsync({ type: "nodebuffer" }).then((content) => {
         res.set({

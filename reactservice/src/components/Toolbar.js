@@ -10,7 +10,7 @@ const Toolbar = () => {
             </div>
 
             {/* Right Section: OS Selection */}
-            <div className="toolbar-right">
+            {/* <div className="toolbar-right">
                 <label>Operating System:</label>
                 <div id='spacer' className="spacer"></div>
                 <select className="os-selector">
@@ -18,7 +18,7 @@ const Toolbar = () => {
                     <option value="linux">Linux</option>
                     <option value="macos">MacOS</option>
                 </select>
-            </div>
+            </div> */}
         </div>
     );
 };
