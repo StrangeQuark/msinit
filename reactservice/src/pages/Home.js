@@ -9,8 +9,7 @@ function Home() {
         "name": "Auth Service",
         "isSelected": false,
         "repo": "authservice",
-        "branch": "main",
-        "description": "test"
+        "branch": "main"
     }
 
     const emailService = {
@@ -27,7 +26,28 @@ function Home() {
         "branch": "main"
     }
 
-    const items = [authService, emailService, reactService]
+    const gatewayService = {
+        "name": "Gateway Service",
+        "isSelected": false,
+        "repo": "gatewayservice",
+        "branch": "main"
+    }
+
+    const testService = {
+        "name": "Test Service",
+        "isSelected": false,
+        "repo": "testservice",
+        "branch": "main"
+    }
+
+    const vaultService = {
+        "name": "Vault Service",
+        "isSelected": false,
+        "repo": "vaultservice",
+        "branch": "main"
+    }
+
+    const items = [authService, emailService, reactService, gatewayService, testService, vaultService]
 
     async function generate() {
         const repositories = []

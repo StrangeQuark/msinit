@@ -20,6 +20,46 @@ app.post('/batch-download', async (req, res) => {
 
     const zip = new JSZip();
 
+    // Define services with the same structure as the Python script
+    const services = {
+        "emailservice-main": {
+            "file": "Integration file: Email",
+            "line": "Integration line: Email",
+            "function_start": "Integration function start: Email",
+            "function_end": "Integration function end: Email"
+        },
+        "authservice-main": {
+            "file": "Integration file: Auth",
+            "line": "Integration line: Auth",
+            "function_start": "Integration function start: Auth",
+            "function_end": "Integration function end: Auth"
+        },
+        "reactservice-main": {
+            "file": "Integration file: React",
+            "line": "Integration line: React",
+            "function_start": "Integration function start: React",
+            "function_end": "Integration function end: React"
+        },
+        "testservice-main": {
+            "file": "Integration file: Test",
+            "line": "Integration line: Test",
+            "function_start": "Integration function start: Test",
+            "function_end": "Integration function end: Test"
+        },
+        "gatewayservice-main": {
+            "file": "Integration file: Gateway",
+            "line": "Integration line: Gateway",
+            "function_start": "Integration function start: Gateway",
+            "function_end": "Integration function end: Gateway"
+        },
+        "vaultservice-main": {
+            "file": "Integration file: Vault",
+            "line": "Integration line: Vault",
+            "function_start": "Integration function start: Vault",
+            "function_end": "Integration function end: Vault"
+        }
+    };
+
     for (const { repo, branch = 'main' } of repositories) {
         const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`;
 
@@ -32,25 +72,79 @@ app.post('/batch-download', async (req, res) => {
             }
 
             const blob = await response.arrayBuffer();
-            // Add the ZIP file to the archive
-            zip.file(`${repo}-${branch}.zip`, blob);
+            // Load the ZIP file
+            const repoZip = await JSZip.loadAsync(blob);
+
+            // Iterate through the files in the ZIP and process them
+            for (const fileName in repoZip.files) {
+            
+                const file = repoZip.files[fileName];
+
+                if(/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
+                    zip.file(fileName, file.async('nodebuffer'));
+                    continue;
+                }
+
+                if (!file.dir) { // Skip directories
+                    try {
+                        const fileContent = await file.async("text");
+
+                        // Apply modifications based on the service configuration
+                        for (const service in services) {
+                            const { file: targetFile, line: targetLine, function_start, function_end } = services[service];
+
+                            // Check if the file contains the target file string
+                            if (fileContent.includes(targetFile)) {
+                                console.log(`Deleting file: ${fileName}`);
+                                // Simulate file deletion by skipping the addition of this file to the ZIP
+                                continue;
+                            }
+
+                            // Remove lines containing the target line string and function blocks
+                            let modifiedContent = fileContent.split('\n').filter(line => {
+                                let insideFunctionBlock = false;
+
+                                // Remove lines within the function block
+                                if (line.includes(function_start)) {
+                                    insideFunctionBlock = true;
+                                    console.log(`Removing block starting with '${function_start}' in file: ${fileName}`);
+                                    return false; // Skip the start of the block
+                                }
+
+                                if (line.includes(function_end)) {
+                                    insideFunctionBlock = false;
+                                    console.log(`Removing block ending with '${function_end}' in file: ${fileName}`);
+                                    return false; // Skip the end of the block
+                                }
+
+                                // Skip lines containing the target line string or inside function blocks
+                                if (insideFunctionBlock || line.includes(targetLine)) {
+                                    if (line.includes(targetLine)) {
+                                        console.log(`Removing line containing '${targetLine}' in file: ${fileName}`);
+                                    }
+                                    return false; // Skip this line
+                                }
+
+                                // Keep other lines
+                                return true;
+                            }).join('\n');
+
+                            // If content was modified, update the file content in the ZIP
+                            if (fileContent !== modifiedContent) {
+                                zip.file(fileName, modifiedContent);
+                            }
+                            else 
+                                zip.file(fileName, fileContent)
+                        }
+
+                    } catch (error) {
+                        console.error(`Error processing file ${fileName}: ${error.message}`);
+                    }
+                }
+            }
         } catch (error) {
             console.error(`Error fetching ${repo}: ${error.message}`);
         }
-    }
-
-    try {
-        // Read the batch files and add them to the ZIP
-        const pythonScript = await fs.readFile('./scripts/common/script.py', 'utf-8');
-        const dockerLaunch = await fs.readFile('./scripts/windows/docker_launch.bat', 'utf-8');
-        const extractSetupCleanup = await fs.readFile('./scripts/windows/extract_setup_cleanup.bat', 'utf-8');
-        
-        zip.file('script.py', pythonScript);
-        zip.file('docker_launch.bat', dockerLaunch);
-        zip.file('extract_setup_cleanup.bat', extractSetupCleanup);
-    } catch (error) {
-        console.error(`Error reading batch files: ${error.message}`);
-        return res.status(500).send('Failed to read batch files');
     }
 
     // Generate the combined ZIP and send it to the client

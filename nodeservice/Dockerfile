@@ -4,7 +4,6 @@ WORKDIR /nodeservice
 
 COPY package.json ./
 COPY server.js ./
-COPY scripts ./scripts
 
 ENV PORT=3000
 EXPOSE 3000
