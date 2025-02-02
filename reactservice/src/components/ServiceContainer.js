@@ -16,7 +16,6 @@ const ServiceContainer = ({ item }) => {
       onClick={toggleStyle}
     >
       <h1 className={`container-text ${isSelected ? "container-text-selected" : ""}`}>{item.name}</h1>
-      {/* <h3 className={`container-text h3 ${isSelected ? "container-text-selected" : ""}`}>{item.description}</h3> */}
     </div>
   );
 };

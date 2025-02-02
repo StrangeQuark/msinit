@@ -20,39 +20,44 @@ app.post('/batch-download', async (req, res) => {
 
     const zip = new JSZip();
 
+    //Add the launch script
+    const launchScript = await fs.readFile("launch_script.py", "utf8");
+    zip.file("launch_script.py", launchScript);
+
+
     // Define services with the same structure as the Python script
     const services = {
-        "emailservice-main": {
+        "emailservice": {
             "file": "Integration file: Email",
             "line": "Integration line: Email",
             "function_start": "Integration function start: Email",
             "function_end": "Integration function end: Email"
         },
-        "authservice-main": {
+        "authservice": {
             "file": "Integration file: Auth",
             "line": "Integration line: Auth",
             "function_start": "Integration function start: Auth",
             "function_end": "Integration function end: Auth"
         },
-        "reactservice-main": {
+        "reactservice": {
             "file": "Integration file: React",
             "line": "Integration line: React",
             "function_start": "Integration function start: React",
             "function_end": "Integration function end: React"
         },
-        "testservice-main": {
+        "testservice": {
             "file": "Integration file: Test",
             "line": "Integration line: Test",
             "function_start": "Integration function start: Test",
             "function_end": "Integration function end: Test"
         },
-        "gatewayservice-main": {
+        "gatewayservice": {
             "file": "Integration file: Gateway",
             "line": "Integration line: Gateway",
             "function_start": "Integration function start: Gateway",
             "function_end": "Integration function end: Gateway"
         },
-        "vaultservice-main": {
+        "vaultservice": {
             "file": "Integration file: Vault",
             "line": "Integration line: Vault",
             "function_start": "Integration function start: Vault",
@@ -60,7 +65,11 @@ app.post('/batch-download', async (req, res) => {
         }
     };
 
-    for (const { repo, branch = 'main' } of repositories) {
+    for (const { repo, branch } of repositories) {
+        delete services[repo]
+    }
+
+    for (const { repo, branch } of repositories) {
         const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`;
 
         try {
@@ -77,71 +86,67 @@ app.post('/batch-download', async (req, res) => {
 
             // Iterate through the files in the ZIP and process them
             for (const fileName in repoZip.files) {
-            
                 const file = repoZip.files[fileName];
-
-                if(/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
+            
+                if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
                     zip.file(fileName, file.async('nodebuffer'));
                     continue;
                 }
-
+            
                 if (!file.dir) { // Skip directories
                     try {
                         const fileContent = await file.async("text");
-
-                        // Apply modifications based on the service configuration
+            
+                        let shouldDeleteFile = false;
+                        let modifiedContent = fileContent; // Start with the original content
+            
                         for (const service in services) {
                             const { file: targetFile, line: targetLine, function_start, function_end } = services[service];
-
-                            // Check if the file contains the target file string
-                            if (fileContent.includes(targetFile)) {
+            
+                            if (modifiedContent.includes(targetFile)) {
                                 console.log(`Deleting file: ${fileName}`);
-                                // Simulate file deletion by skipping the addition of this file to the ZIP
-                                continue;
+                                shouldDeleteFile = true;
+                                break; // No need to process further if we're deleting it
                             }
-
-                            // Remove lines containing the target line string and function blocks
-                            let modifiedContent = fileContent.split('\n').filter(line => {
-                                let insideFunctionBlock = false;
-
-                                // Remove lines within the function block
+            
+                            let insideFunctionBlock = false; // Reset this for each service check
+                            let newContent = [];
+            
+                            for (let line of modifiedContent.split('\n')) {
                                 if (line.includes(function_start)) {
                                     insideFunctionBlock = true;
                                     console.log(`Removing block starting with '${function_start}' in file: ${fileName}`);
-                                    return false; // Skip the start of the block
+                                    continue; // Skip this line
                                 }
-
-                                if (line.includes(function_end)) {
-                                    insideFunctionBlock = false;
-                                    console.log(`Removing block ending with '${function_end}' in file: ${fileName}`);
-                                    return false; // Skip the end of the block
-                                }
-
-                                // Skip lines containing the target line string or inside function blocks
-                                if (insideFunctionBlock || line.includes(targetLine)) {
-                                    if (line.includes(targetLine)) {
-                                        console.log(`Removing line containing '${targetLine}' in file: ${fileName}`);
+            
+                                if (insideFunctionBlock) {
+                                    if (line.includes(function_end)) {
+                                        insideFunctionBlock = false;
+                                        console.log(`Removing block ending with '${function_end}' in file: ${fileName}`);
                                     }
-                                    return false; // Skip this line
+                                    continue; // Skip lines inside the block
                                 }
-
-                                // Keep other lines
-                                return true;
-                            }).join('\n');
-
-                            // If content was modified, update the file content in the ZIP
-                            if (fileContent !== modifiedContent) {
-                                zip.file(fileName, modifiedContent);
+            
+                                if (line.includes(targetLine)) {
+                                    console.log(`Removing line containing '${targetLine}' in file: ${fileName}`);
+                                    continue; // Skip this line
+                                }
+            
+                                newContent.push(line);
                             }
-                            else 
-                                zip.file(fileName, fileContent)
+            
+                            modifiedContent = newContent.join('\n');
                         }
-
+            
+                        if (!shouldDeleteFile) {
+                            zip.file(fileName, modifiedContent);
+                        }
+            
                     } catch (error) {
                         console.error(`Error processing file ${fileName}: ${error.message}`);
                     }
                 }
-            }
+            }            
         } catch (error) {
             console.error(`Error fetching ${repo}: ${error.message}`);
         }
