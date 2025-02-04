@@ -47,7 +47,7 @@ function Home() {
         "branch": "main"
     }
 
-    const items = [authService, emailService, reactService, gatewayService, testService, vaultService]
+    const items = [authService, emailService, reactService]
 
     async function generate() {
         const repositories = []
