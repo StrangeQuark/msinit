@@ -3,7 +3,7 @@
   justify-content: space-between;
   align-items: center;
   margin: 0 auto;
-  min-height: calc(10vh - 1px);
+  height: calc(10vh - 1px);
   padding: 0 30px;
   max-width: 70vw;
   border-width: 1px;
@@ -15,11 +15,12 @@
 .toolbar-left {
   display: flex;
   align-items: center;
+  height: 8vh;
 }
 
 .toolbar-logo {
   font-family:'Courier New', Courier, monospace;
-  font-size: 3.2rem;
+  font-size: 3rem;
 }
 
 .toolbar-right {
