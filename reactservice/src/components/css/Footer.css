@@ -1,6 +1,6 @@
 .footer {
   margin: 0 auto;
-  min-height: calc(10vh - 1px);
+  height: calc(10vh - 1px);
   padding: 0 110px;
   max-width: 70vw;
   border-width: 1px;
@@ -33,7 +33,6 @@
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6);
   transform: scale(0.98);
 }
-
 
 .center {
   margin: 0;
