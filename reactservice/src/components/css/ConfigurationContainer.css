@@ -2,3 +2,23 @@
     border-width: 1px;
     border-style: none solid none none;
 }
+
+.configurationContainer div {
+    height: 25vh;
+}
+
+.configurationContainer h2 {
+    padding-left: 1vw;
+}
+
+.configurationContainer label {
+    padding-bottom: 2vh;
+    display: inline-block;
+    text-align: center;
+    width: 40%;
+}
+
+.configurationContainer input {
+    display: inline-block;
+    width: 55%;
+}
