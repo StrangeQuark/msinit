@@ -28,10 +28,10 @@ const ConfigurationContainer = ({projectUtil}) => {
                 <h2>Metadata</h2>
 
                 <label>Project name:</label>
-                <input value={projectUtil.projectName} onInput={handleNameInputChange} />
+                <input value={projectUtil.projectName} spellCheck="false" onInput={handleNameInputChange} />
 
                 <label>Project group:</label>
-                <input value={projectUtil.projectGroup} onInput={handleGroupInputChange}/>
+                <input value={projectUtil.projectGroup} spellCheck="false" onInput={handleGroupInputChange}/>
             </div>
         </div>
     )
