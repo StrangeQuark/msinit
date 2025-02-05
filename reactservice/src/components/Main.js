@@ -3,11 +3,11 @@ import "./css/Main.css";
 import ServiceContainer from "./ServiceContainer";
 import ConfigurationContainer from "./ConfigurationContainer";
 
-const Main = ({items}) => {
+const Main = ({items, projectUtil}) => {
     return(
         <div id="main" className="main">
             <div id="leftDiv" className="left">
-                <ConfigurationContainer />
+                <ConfigurationContainer projectUtil={projectUtil}/>
             </div>
             <div id="rightDiv" className="right">
                 {
