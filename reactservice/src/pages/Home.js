@@ -5,6 +5,16 @@ import Toolbar from '../components/Toolbar';
 import Footer from '../components/Footer';
 
 function Home() {
+    const[projectName, setProjectName] = useState('genesis')
+    const[projectGroup, setProjectGroup] = useState("com.strangequark")
+
+    const projectUtil = {
+        projectName,
+        setProjectName,
+        projectGroup,
+        setProjectGroup
+    }
+
     const authService = {
         "name": "Auth Service",
         "isSelected": false,
@@ -67,7 +77,7 @@ function Home() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ repositories })
+                body: JSON.stringify({ repositories, projectGroup })
             });
     
             if (!response.ok) {
@@ -77,7 +87,7 @@ function Home() {
             const blob = await response.blob()
             const anchor = document.createElement('a')
             anchor.href = URL.createObjectURL(blob)
-            anchor.download = 'genesis.zip'
+            anchor.download = projectName + '.zip'
             anchor.click()
             URL.revokeObjectURL(anchor.href)
         } catch (error) {
@@ -88,7 +98,7 @@ function Home() {
     return(
         <div id='app' className='app'>
             <Toolbar />
-            <Main items={items}/>
+            <Main items={items} projectUtil={projectUtil}/>
             <Footer generateClick={generate}/>
         </div>
     )
