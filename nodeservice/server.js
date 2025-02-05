@@ -1,28 +1,30 @@
-import express from 'express';
-import fetch from 'node-fetch';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-import JSZip from 'jszip';
-import fs from 'fs/promises';
+import express from 'express'
+import fetch from 'node-fetch'
+import cors from 'cors'
+import bodyParser from 'body-parser'
+import JSZip from 'jszip'
+import fs from 'fs/promises'
 
-const app = express();
+const app = express()
 
 // Middleware to parse JSON request bodies
-app.use(bodyParser.json());
-app.use(cors());
+app.use(bodyParser.json())
+app.use(cors())
 
 app.post('/batch-download', async (req, res) => {
-    const repositories = req.body.repositories;
+    const repositories = req.body.repositories
+    const projectGroup = req.body.projectGroup
+    const projectDomains = projectGroup.split(".")
 
     if (!Array.isArray(repositories) || repositories.length === 0) {
-        return res.status(400).send('Invalid or empty repository list');
+        return res.status(400).send('Invalid or empty repository list')
     }
 
-    const zip = new JSZip();
+    const zip = new JSZip()
 
     //Add the launch script
-    const launchScript = await fs.readFile("launch_script.py", "utf8");
-    zip.file("launch_script.py", launchScript);
+    const launchScript = await fs.readFile("launch_script.py", "utf8")
+    zip.file("launch_script.py", launchScript)
 
 
     // Define services with the same structure as the Python script
@@ -63,92 +65,106 @@ app.post('/batch-download', async (req, res) => {
             "function_start": "Integration function start: Vault",
             "function_end": "Integration function end: Vault"
         }
-    };
+    }
 
     for (const { repo, branch } of repositories) {
         delete services[repo]
     }
 
     for (const { repo, branch } of repositories) {
-        const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`;
+        const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`
 
         try {
             // Fetch the ZIP file
-            const response = await fetch(url);
+            const response = await fetch(url)
             if (!response.ok) {
-                console.error(`Failed to fetch ${repo}: ${response.statusText}`);
-                continue;
+                console.error(`Failed to fetch ${repo}: ${response.statusText}`)
+                continue
             }
 
-            const blob = await response.arrayBuffer();
+            const blob = await response.arrayBuffer()
             // Load the ZIP file
-            const repoZip = await JSZip.loadAsync(blob);
+            const repoZip = await JSZip.loadAsync(blob)
 
             // Iterate through the files in the ZIP and process them
-            for (const fileName in repoZip.files) {
-                const file = repoZip.files[fileName];
+            for (let fileName in repoZip.files) {
+                const file = repoZip.files[fileName]
             
                 if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
-                    zip.file(fileName, file.async('nodebuffer'));
-                    continue;
+                    zip.file(fileName, file.async('nodebuffer'))
+                    continue
                 }
+
+                let pathParts = fileName.split("/");
+            
+                for (let i = 0; i < pathParts.length; i++) {
+                    if (pathParts[i] === "com") {
+                        pathParts[i] = projectDomains[0];
+                    } else if (pathParts[i] === "strangequark") {
+                        pathParts[i] = projectDomains[1];
+                    }
+                }
+            
+                fileName = pathParts.join("/"); // Reconstruct the path
+                console.log(fileName);
+                
             
                 if (!file.dir) { // Skip directories
                     try {
-                        const fileContent = await file.async("text");
+                        const fileContent = await file.async("text")
             
-                        let shouldDeleteFile = false;
-                        let modifiedContent = fileContent; // Start with the original content
+                        let shouldDeleteFile = false
+                        let modifiedContent = fileContent.replace("com.strangequark", projectGroup) // Start with the original content
             
                         for (const service in services) {
-                            const { file: targetFile, line: targetLine, function_start, function_end } = services[service];
+                            const { file: targetFile, line: targetLine, function_start, function_end } = services[service]
             
                             if (modifiedContent.includes(targetFile)) {
-                                console.log(`Deleting file: ${fileName}`);
-                                shouldDeleteFile = true;
-                                break; // No need to process further if we're deleting it
+                                // console.log(`Deleting file: ${fileName}`)
+                                shouldDeleteFile = true
+                                break // No need to process further if we're deleting it
                             }
             
-                            let insideFunctionBlock = false; // Reset this for each service check
-                            let newContent = [];
+                            let insideFunctionBlock = false // Reset this for each service check
+                            let newContent = []
             
                             for (let line of modifiedContent.split('\n')) {
                                 if (line.includes(function_start)) {
-                                    insideFunctionBlock = true;
-                                    console.log(`Removing block starting with '${function_start}' in file: ${fileName}`);
-                                    continue; // Skip this line
+                                    insideFunctionBlock = true
+                                    // console.log(`Removing block starting with '${function_start}' in file: ${fileName}`)
+                                    continue // Skip this line
                                 }
             
                                 if (insideFunctionBlock) {
                                     if (line.includes(function_end)) {
-                                        insideFunctionBlock = false;
-                                        console.log(`Removing block ending with '${function_end}' in file: ${fileName}`);
+                                        insideFunctionBlock = false
+                                        // console.log(`Removing block ending with '${function_end}' in file: ${fileName}`)
                                     }
-                                    continue; // Skip lines inside the block
+                                    continue // Skip lines inside the block
                                 }
             
                                 if (line.includes(targetLine)) {
-                                    console.log(`Removing line containing '${targetLine}' in file: ${fileName}`);
-                                    continue; // Skip this line
+                                    // console.log(`Removing line containing '${targetLine}' in file: ${fileName}`)
+                                    continue // Skip this line
                                 }
             
-                                newContent.push(line);
+                                newContent.push(line)
                             }
             
-                            modifiedContent = newContent.join('\n');
+                            modifiedContent = newContent.join('\n')
                         }
             
                         if (!shouldDeleteFile) {
-                            zip.file(fileName, modifiedContent);
+                            zip.file(fileName, modifiedContent)
                         }
             
                     } catch (error) {
-                        console.error(`Error processing file ${fileName}: ${error.message}`);
+                        console.error(`Error processing file ${fileName}: ${error.message}`)
                     }
                 }
             }            
         } catch (error) {
-            console.error(`Error fetching ${repo}: ${error.message}`);
+            console.error(`Error fetching ${repo}: ${error.message}`)
         }
     }
 
@@ -156,10 +172,10 @@ app.post('/batch-download', async (req, res) => {
     zip.generateAsync({ type: "nodebuffer" }).then((content) => {
         res.set({
             "Content-Type": "application/zip",
-            "Content-Disposition": 'attachment; filename="repositories_with_batch.zip"'
-        });
-        res.send(content);
-    });
-});
+            "Content-Disposition": 'attachment filename="repositories_with_batch.zip"'
+        })
+        res.send(content)
+    })
+})
 
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
+app.listen(3000, () => console.log('Server running on http://localhost:3000'))
