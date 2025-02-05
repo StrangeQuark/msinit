@@ -105,9 +105,7 @@ app.post('/batch-download', async (req, res) => {
                     }
                 }
             
-                fileName = pathParts.join("/"); // Reconstruct the path
-                console.log(fileName);
-                
+                fileName = pathParts.join("/"); // Reconstruct the path                
             
                 if (!file.dir) { // Skip directories
                     try {
@@ -120,7 +118,6 @@ app.post('/batch-download', async (req, res) => {
                             const { file: targetFile, line: targetLine, function_start, function_end } = services[service]
             
                             if (modifiedContent.includes(targetFile)) {
-                                // console.log(`Deleting file: ${fileName}`)
                                 shouldDeleteFile = true
                                 break // No need to process further if we're deleting it
                             }
@@ -131,20 +128,17 @@ app.post('/batch-download', async (req, res) => {
                             for (let line of modifiedContent.split('\n')) {
                                 if (line.includes(function_start)) {
                                     insideFunctionBlock = true
-                                    // console.log(`Removing block starting with '${function_start}' in file: ${fileName}`)
                                     continue // Skip this line
                                 }
             
                                 if (insideFunctionBlock) {
                                     if (line.includes(function_end)) {
                                         insideFunctionBlock = false
-                                        // console.log(`Removing block ending with '${function_end}' in file: ${fileName}`)
                                     }
                                     continue // Skip lines inside the block
                                 }
             
                                 if (line.includes(targetLine)) {
-                                    // console.log(`Removing line containing '${targetLine}' in file: ${fileName}`)
                                     continue // Skip this line
                                 }
             
