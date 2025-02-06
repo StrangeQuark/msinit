@@ -63,7 +63,6 @@ function Home() {
     const items = [authService, emailService, reactService]
 
     async function generate() {
-        console.log(javaVersion)
         const repositories = []
 
         for(const item of items)
@@ -81,7 +80,7 @@ function Home() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ repositories, projectGroup })
+                body: JSON.stringify({ repositories, projectGroup, javaVersion })
             });
     
             if (!response.ok) {

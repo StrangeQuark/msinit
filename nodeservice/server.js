@@ -15,6 +15,7 @@ app.post('/batch-download', async (req, res) => {
     const repositories = req.body.repositories
     const projectGroup = req.body.projectGroup
     const projectDomains = projectGroup.split(".")
+    const javaVersion = req.body.javaVersion
 
     if (!Array.isArray(repositories) || repositories.length === 0) {
         return res.status(400).send('Invalid or empty repository list')
@@ -112,7 +113,9 @@ app.post('/batch-download', async (req, res) => {
                         const fileContent = await file.async("text")
             
                         let shouldDeleteFile = false
-                        let modifiedContent = fileContent.replace("com.strangequark", projectGroup) // Start with the original content
+                        let modifiedContent = fileContent.replace("com.strangequark", projectGroup)
+                        modifiedContent = modifiedContent.replace("21-alpine", javaVersion + "-alpine")
+                        modifiedContent = modifiedContent.replace("<java.version>21", "<java.version>" + javaVersion)
             
                         for (const service in services) {
                             const { file: targetFile, line: targetLine, function_start, function_end } = services[service]
