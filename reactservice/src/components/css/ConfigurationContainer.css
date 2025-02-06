@@ -12,7 +12,20 @@
     height: 5vh;
 }
 
-.configurationContainer label {
+.topConfigDiv label {
+    padding-bottom: 4vh;
+    display: inline-block;
+    text-align: center;
+    font-size: x-large;
+    width: 33%;
+}
+
+.topConfigDiv input {
+    width: 20%;
+    height: 2vh;
+}
+
+.bottomConfigDiv label {
     padding-bottom: 4vh;
     display: inline-block;
     text-align: center;
@@ -20,7 +33,7 @@
     width: 40%;
 }
 
-.configurationContainer input {
+.bottomConfigDiv input {
     display: inline-block;
     width: 55%;
     height: 5vh;
