@@ -113,9 +113,9 @@ app.post('/batch-download', async (req, res) => {
                         const fileContent = await file.async("text")
             
                         let shouldDeleteFile = false
-                        let modifiedContent = fileContent.replace("com.strangequark", projectGroup)
-                        modifiedContent = modifiedContent.replace("21-alpine", javaVersion + "-alpine")
-                        modifiedContent = modifiedContent.replace("<java.version>21", "<java.version>" + javaVersion)
+                        let modifiedContent = fileContent.replaceAll("com.strangequark", projectGroup)
+                        modifiedContent = modifiedContent.replaceAll("21-alpine", javaVersion + "-alpine")
+                        modifiedContent = modifiedContent.replaceAll("<java.version>21", "<java.version>" + javaVersion)
             
                         for (const service in services) {
                             const { file: targetFile, line: targetLine, function_start, function_end } = services[service]
