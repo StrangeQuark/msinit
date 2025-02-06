@@ -22,16 +22,32 @@ const ConfigurationContainer = ({projectUtil}) => {
     
     return(
         <div id="configurationContainer" className="configurationContainer">
-            <div></div>
-            <div></div>
-            <div id="bottom-config-div">
-                <h2>Metadata</h2>
+            <div id="top-config-div" className="topConfigDiv">
+              <h2>Java version</h2>
+              
+              <label>
+                  21<input type="radio" name="option" value="21" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '21'} />
+              </label>
+              <label>
+                  17<input type="radio" name="option" value="17" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '17'}/>
+              </label>
+              <label>
+                  11<input type="radio" name="option" value="11" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '11'}/>
+              </label>
+            </div>
 
-                <label>Project name:</label>
-                <input value={projectUtil.projectName} onInput={handleNameInputChange} />
+            <div>
 
-                <label>Project group:</label>
-                <input value={projectUtil.projectGroup} onInput={handleGroupInputChange}/>
+            </div>
+
+            <div id="bottom-config-div" className="bottomConfigDiv">
+              <h2>Metadata</h2>
+
+              <label>Project name:</label>
+              <input value={projectUtil.projectName} spellCheck="false" onInput={handleNameInputChange} />
+
+              <label>Project group:</label>
+              <input value={projectUtil.projectGroup} spellCheck="false" onInput={handleGroupInputChange}/>
             </div>
         </div>
     )

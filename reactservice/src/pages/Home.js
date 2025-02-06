@@ -7,12 +7,15 @@ import Footer from '../components/Footer';
 function Home() {
     const[projectName, setProjectName] = useState('genesis')
     const[projectGroup, setProjectGroup] = useState("com.strangequark")
+    const[javaVersion, setJavaVersion] = useState('21')
 
     const projectUtil = {
         projectName,
         setProjectName,
         projectGroup,
-        setProjectGroup
+        setProjectGroup,
+        javaVersion,
+        setJavaVersion
     }
 
     const authService = {
@@ -60,6 +63,7 @@ function Home() {
     const items = [authService, emailService, reactService]
 
     async function generate() {
+        console.log(javaVersion)
         const repositories = []
 
         for(const item of items)
