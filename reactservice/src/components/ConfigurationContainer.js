@@ -4,7 +4,7 @@ import "./css/ConfigurationContainer.css";
 const ConfigurationContainer = ({projectUtil}) => {
     const handleGroupInputChange = (e) => {
         const newValue = e.target.value
-        const isValid = /^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*$/.test(newValue)
+        const isValid = /^[a-zA-Z]+(\.[a-zA-Z]+)*$/.test(newValue)
       
         if (isValid || newValue === '') {
           projectUtil.setProjectGroup(newValue)

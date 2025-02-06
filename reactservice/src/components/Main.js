@@ -3,7 +3,7 @@ import "./css/Main.css";
 import ServiceContainer from "./ServiceContainer";
 import ConfigurationContainer from "./ConfigurationContainer";
 
-const Main = ({items, projectUtil}) => {
+const Main = ({items, toggleItem, projectUtil}) => {
     return(
         <div id="main" className="main">
             <div id="leftDiv" className="left">
@@ -12,7 +12,7 @@ const Main = ({items, projectUtil}) => {
             <div id="rightDiv" className="right">
                 {
                     items.map((item, index) => (
-                        <ServiceContainer key={index} item={item} />
+                        <ServiceContainer key={index} item={item} toggleItem={() => toggleItem(index)} />
                     ))
                 }
             </div>
