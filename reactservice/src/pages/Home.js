@@ -8,6 +8,18 @@ function Home() {
     const[projectName, setProjectName] = useState('genesis')
     const[projectGroup, setProjectGroup] = useState("com.strangequark")
     const[javaVersion, setJavaVersion] = useState('21')
+    const[items, setItems] = useState([
+        { name: "Auth Service", isSelected: false, repo: "authservice", branch: "main" },
+        { name: "Email Service", isSelected: false, repo: "emailservice", branch: "main" },
+        { name: "React Service", isSelected: false, repo: "reactservice", branch: "main" }
+    ])
+
+    const toggleItem = (index) => {
+        setItems(items => {
+            items[index].isSelected = !items[index].isSelected;
+            return [...items]; // Create a new reference without deep cloning
+        });
+    };
 
     const projectUtil = {
         projectName,
@@ -17,50 +29,6 @@ function Home() {
         javaVersion,
         setJavaVersion
     }
-
-    const authService = {
-        "name": "Auth Service",
-        "isSelected": false,
-        "repo": "authservice",
-        "branch": "main"
-    }
-
-    const emailService = {
-        "name": "Email Service",
-        "isSelected": false,
-        "repo": "emailservice",
-        "branch": "main"
-    }
-
-    const reactService = {
-        "name": "React Service",
-        "isSelected": false,
-        "repo": "reactservice",
-        "branch": "main"
-    }
-
-    const gatewayService = {
-        "name": "Gateway Service",
-        "isSelected": false,
-        "repo": "gatewayservice",
-        "branch": "main"
-    }
-
-    const testService = {
-        "name": "Test Service",
-        "isSelected": false,
-        "repo": "testservice",
-        "branch": "main"
-    }
-
-    const vaultService = {
-        "name": "Vault Service",
-        "isSelected": false,
-        "repo": "vaultservice",
-        "branch": "main"
-    }
-
-    const items = [authService, emailService, reactService]
 
     async function generate() {
         const repositories = []
@@ -101,7 +69,7 @@ function Home() {
     return(
         <div id='app' className='app'>
             <Toolbar />
-            <Main items={items} projectUtil={projectUtil}/>
+            <Main items={items} toggleItem={toggleItem} projectUtil={projectUtil}/>
             <Footer generateClick={generate}/>
         </div>
     )
