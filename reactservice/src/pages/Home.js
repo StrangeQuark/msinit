@@ -4,7 +4,7 @@ import "./css/Home.css";
 import Toolbar from '../components/Toolbar';
 import Footer from '../components/Footer';
 
-function Home() {
+const Home = () => {
     const[projectName, setProjectName] = useState('genesis')
     const[projectGroup, setProjectGroup] = useState("com.strangequark")
     const[javaVersion, setJavaVersion] = useState('21')
@@ -30,7 +30,7 @@ function Home() {
         setJavaVersion
     }
 
-    async function generate() {
+    const generate = async () => {
         const repositories = []
 
         for(const item of items)
@@ -67,7 +67,7 @@ function Home() {
     }    
 
     return(
-        <div id='app' className='app'>
+        <div id='home' className='home'>
             <Toolbar />
             <Main items={items} toggleItem={toggleItem} projectUtil={projectUtil}/>
             <Footer generateClick={generate}/>

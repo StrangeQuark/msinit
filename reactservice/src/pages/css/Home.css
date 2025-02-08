@@ -1,33 +1,7 @@
-#app {
+.home {
     max-width: 70vw;
     margin: 0 auto;
     position: relative;
     border-width: 1px;
     border-style: none solid;
 }
-
-:root {
-    /* this has to be set to switch between light or dark */
-    color-scheme: light dark;
-
-    --light-bg: ghostwhite;
-    --light-color: #101520;
-
-    --dark-bg: #101520;
-    --dark-color: ghostwhite;
-}
-
-* {
-    background-color: light-dark(var(--light-bg), var(--dark-bg));
-    color: light-dark(var(--light-color), var(--dark-color));
-    border-color: rgba(150, 180, 180, 0.3)
-}
-
-.light {
-    /* forces light color-scheme */
-    color-scheme: light;
-  }
-  .dark {
-    /* forces dark color-scheme */
-    color-scheme: dark;
-  }

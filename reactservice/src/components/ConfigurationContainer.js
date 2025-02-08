@@ -31,9 +31,6 @@ const ConfigurationContainer = ({projectUtil}) => {
               <label>
                   17<input type="radio" name="option" value="17" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '17'}/>
               </label>
-              <label>
-                  11<input type="radio" name="option" value="11" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '11'}/>
-              </label>
             </div>
 
             <div>
