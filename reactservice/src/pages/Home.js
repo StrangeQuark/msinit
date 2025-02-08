@@ -67,7 +67,7 @@ function Home() {
     }    
 
     return(
-        <div id='app' className='app'>
+        <div id='home' className='home'>
             <Toolbar />
             <Main items={items} toggleItem={toggleItem} projectUtil={projectUtil}/>
             <Footer generateClick={generate}/>
