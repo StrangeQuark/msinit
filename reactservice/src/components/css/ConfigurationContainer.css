@@ -1,10 +1,12 @@
 .configurationContainer {
     border-width: 1px;
     border-style: none solid none none;
+    padding: 20px;
 }
 
 .configurationContainer div {
-    height: 25vh;
+    height: 25%;
+    margin-bottom: 15px;
 }
 
 .configurationContainer h2 {
@@ -42,4 +44,14 @@
     border-style: solid;
     border-color: white;
     outline: none;
+}
+
+@media (max-width: 900px) {
+    .configurationContainer {
+        border: none;
+    }
+
+    .configurationContainer div {
+        height: auto;
+    }
 }

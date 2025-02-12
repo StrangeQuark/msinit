@@ -6,10 +6,13 @@
   border-width: 1px;
   border-style: solid none none none;
   position: relative;
+  min-height: 50px;
 }
 
 .generateButton {
+  line-height: calc(5vh - 8px);
   font-size: 1.5rem;
+  max-height: calc(10vh - 5px);
   padding: 10px 20px;
   border: 2px solid #4c97ff;
   border-radius: 8px;
