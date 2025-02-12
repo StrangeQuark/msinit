@@ -24,14 +24,13 @@
 
 .topConfigDiv input {
     width: 20%;
-    height: 2vh;
 }
 
 .bottomConfigDiv label {
     padding-bottom: 4vh;
     display: inline-block;
     text-align: center;
-    font-size: x-large;
+    font-size: large;
     width: 40%;
 }
 
