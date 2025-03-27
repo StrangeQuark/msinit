@@ -4,10 +4,10 @@ services:
   app:
     build: .
     networks:
-      - "genesis-network"
+      - "msinit-network"
     ports:
       - "3000:3000"
     container_name: express-app
 networks:
-  genesis-network:
+  msinit-network:
     external: true

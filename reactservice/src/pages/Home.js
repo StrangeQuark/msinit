@@ -5,7 +5,7 @@ import Toolbar from '../components/Toolbar';
 import Footer from '../components/Footer';
 
 const Home = () => {
-    const[projectName, setProjectName] = useState('genesis')
+    const[projectName, setProjectName] = useState('msinit')
     const[projectGroup, setProjectGroup] = useState("com.strangequark")
     const[javaVersion, setJavaVersion] = useState('21')
     const[items, setItems] = useState([
