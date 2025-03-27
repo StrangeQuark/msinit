@@ -4,10 +4,10 @@ services:
   app:
     build: .
     networks:
-      - genesis-network
+      - msinit-network
     ports:
       - "8080:3001"
     container_name: react-app
 networks:
-  genesis-network:
+  msinit-network:
     external: true

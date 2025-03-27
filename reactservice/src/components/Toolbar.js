@@ -6,7 +6,7 @@ const Toolbar = () => {
         <div id="toolbar" className="toolbar">
             {/* Left Section: Image and Website Name */}
             <div className="toolbar-left">
-                <h1 className="toolbar-logo">Genesis</h1>
+                <h1 className="toolbar-logo">Microservice Initializer</h1>
             </div>
 
             {/* Right Section: OS Selection */}
