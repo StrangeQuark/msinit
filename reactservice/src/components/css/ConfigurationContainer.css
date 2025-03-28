@@ -14,6 +14,7 @@
     height: 5vh;
 }
 
+.middleConfigDiv label,
 .topConfigDiv label {
     padding-bottom: 4vh;
     display: inline-block;
@@ -22,6 +23,7 @@
     width: 33%;
 }
 
+.middleConfigDiv input,
 .topConfigDiv input {
     width: 20%;
 }

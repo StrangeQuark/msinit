@@ -26,15 +26,22 @@ const ConfigurationContainer = ({projectUtil}) => {
               <h2>Java version</h2>
               
               <label>
-                  21<input type="radio" name="option" value="21" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '21'} />
+                  21<input type="radio" name="javaVersion" value="21" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '21'} />
               </label>
               <label>
-                  17<input type="radio" name="option" value="17" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '17'}/>
+                  17<input type="radio" name="javaVersion" value="17" onChange={(e) => projectUtil.setJavaVersion(e.target.value)} checked={projectUtil.javaVersion === '17'}/>
               </label>
             </div>
 
-            <div>
-
+            <div id="middle-config-div" className="middleConfigDiv">
+              <h2>Operating System</h2>
+              
+              <label>
+                  Linux<input type="radio" name="OS" value="linux" onChange={(e) => projectUtil.setOS(e.target.value)} checked={projectUtil.OS === 'linux'} />
+              </label>
+              <label>
+                  Windows<input type="radio" name="OS" value="windows" onChange={(e) => projectUtil.setOS(e.target.value)} checked={projectUtil.OS === 'windows'}/>
+              </label>
             </div>
 
             <div id="bottom-config-div" className="bottomConfigDiv">
