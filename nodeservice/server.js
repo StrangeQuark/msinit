@@ -119,7 +119,7 @@ app.post('/batch-download', async (req, res) => {
                         modifiedContent = modifiedContent.replaceAll("<java.version>21", "<java.version>" + javaVersion)
 
                         if(OS === "windows") {
-                            modifiedContent = modifiedContent.replaceAll("PORT=", "set PORT=")
+                            modifiedContent = modifiedContent.replaceAll("\"start\": \"PORT=", "\"start\": \"set PORT=")
                             modifiedContent = modifiedContent.replaceAll("react-scripts start", "&& react-scripts start")
                         }
             
