@@ -8,6 +8,7 @@ const Home = () => {
     const[projectName, setProjectName] = useState('msinit')
     const[projectGroup, setProjectGroup] = useState("com.strangequark")
     const[javaVersion, setJavaVersion] = useState('21')
+    const[OS, setOS] = useState('linux')
     const[items, setItems] = useState([
         { name: "Auth Service", isSelected: false, repo: "authservice", branch: "main" },
         { name: "Email Service", isSelected: false, repo: "emailservice", branch: "main" },
@@ -28,7 +29,9 @@ const Home = () => {
         projectGroup,
         setProjectGroup,
         javaVersion,
-        setJavaVersion
+        setJavaVersion,
+        OS,
+        setOS
     }
 
     const generate = async () => {
@@ -49,7 +52,7 @@ const Home = () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ repositories, projectGroup, javaVersion })
+                body: JSON.stringify({ repositories, projectGroup, javaVersion, OS })
             });
     
             if (!response.ok) {
