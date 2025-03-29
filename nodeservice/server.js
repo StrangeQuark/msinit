@@ -29,8 +29,8 @@ app.post('/batch-download', async (req, res) => {
     zip.file("launch_script.py", launchScript)
 
 
-    // Define services with the same structure as the Python script
-    const services = {
+    // Define services that are to be pruned from the repos
+    const servicesToPrune = {
         "emailservice": {
             "file": "Integration file: Email",
             "line": "Integration line: Email",
@@ -66,11 +66,18 @@ app.post('/batch-download', async (req, res) => {
             "line": "Integration line: Vault",
             "function_start": "Integration function start: Vault",
             "function_end": "Integration function end: Vault"
+        },
+        "fileservice": {
+            "file": "Integration file: Files",
+            "line": "Integration line: Files",
+            "function_start": "Integration function start: Files",
+            "function_end": "Integration function end: Files"
         }
     }
 
+
     for (const { repo, branch } of repositories) {
-        delete services[repo]
+        delete servicesToPrune[repo]
     }
 
     for (const { repo, branch } of repositories) {
@@ -123,8 +130,8 @@ app.post('/batch-download', async (req, res) => {
                             modifiedContent = modifiedContent.replaceAll("react-scripts start", "&& react-scripts start")
                         }
             
-                        for (const service in services) {
-                            const { file: targetFile, line: targetLine, function_start, function_end } = services[service]
+                        for (const service in servicesToPrune) {
+                            const { file: targetFile, line: targetLine, function_start, function_end } = servicesToPrune[service]
             
                             if (modifiedContent.includes(targetFile)) {
                                 shouldDeleteFile = true
