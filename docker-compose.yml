@@ -1,13 +1,11 @@
-version: '1.0.0'
-
 services:
-  app:
+  msinit-backend-service:
     build: .
     networks:
       - "msinit-network"
     ports:
       - "3000:3000"
-    container_name: express-app
+    container_name: msinit-backend-service
 networks:
   msinit-network:
     external: true
