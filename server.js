@@ -14,9 +14,18 @@ app.use(cors())
 app.post('/batch-download', async (req, res) => {
     const repositories = req.body.repositories
     const projectGroup = req.body.projectGroup
-    const projectDomains = projectGroup.split(".")
     const javaVersion = req.body.javaVersion
     const OS = req.body.OS
+
+    if (typeof projectGroup !== 'string' || !projectGroup.includes('.')) {
+        return res.status(400).send('Invalid projectGroup format. Expected format like "com.example".')
+    }
+
+    const projectDomains = projectGroup.split(".");
+    if (projectDomains.length < 2) {
+        return res.status(400).send('projectGroup must have at least two segments separated by a dot.');
+    }
+
 
     if (!Array.isArray(repositories) || repositories.length === 0) {
         return res.status(400).send('Invalid or empty repository list')
@@ -100,21 +109,42 @@ app.post('/batch-download', async (req, res) => {
                 const file = repoZip.files[fileName]
             
                 if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
-                    zip.file(fileName, file.async('nodebuffer'))
+                    zip.file(fileName, await file.async('nodebuffer'))
                     continue
                 }
 
+                // Validate projectGroup format
+                if (typeof projectGroup !== 'string' || !projectGroup.includes('.')) {
+                    return res.status(400).send('Invalid projectGroup. Use a format like "com.example"');
+                }
+
+                const projectDomains = projectGroup.split(".");
+                if (projectDomains.length < 2) {
+                    return res.status(400).send('projectGroup must have at least two segments like "com.example"');
+                }
+
+                // Replace path segments intelligently
                 let pathParts = fileName.split("/");
-            
-                for (let i = 0; i < pathParts.length; i++) {
-                    if (pathParts[i] === "com") {
-                        pathParts[i] = projectDomains[0];
-                    } else if (pathParts[i] === "strangequark") {
-                        pathParts[i] = projectDomains[1];
+
+                // Only apply transformation inside known Java source roots
+                const javaSourceRootIndex = pathParts.findIndex((segment, i) =>
+                    segment === "src" && (pathParts[i + 1] === "main" || pathParts[i + 1] === "test") && pathParts[i + 2] === "java"
+                );
+
+                if (javaSourceRootIndex !== -1) {
+                    const packageRootIndex = javaSourceRootIndex + 3;
+
+                    if (
+                        pathParts[packageRootIndex] === "com" &&
+                        pathParts[packageRootIndex + 1] === "strangequark"
+                    ) {
+                        pathParts[packageRootIndex] = projectDomains[0];
+                        pathParts[packageRootIndex + 1] = projectDomains[1];
                     }
                 }
-            
-                fileName = pathParts.join("/"); // Reconstruct the path                
+
+                fileName = pathParts.join("/");
+
             
                 if (!file.dir) { // Skip directories
                     try {
@@ -185,6 +215,9 @@ app.post('/batch-download', async (req, res) => {
             "Content-Disposition": 'attachment filename="repositories_with_batch.zip"'
         })
         res.send(content)
+    }).catch((error) => {
+        console.error('Error generating ZIP:', error);
+        res.status(500).send('Failed to generate ZIP file.');
     })
 })
 
