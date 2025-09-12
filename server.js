@@ -77,10 +77,10 @@ app.post('/batch-download', async (req, res) => {
             "function_end": "Integration function end: Vault"
         },
         "fileservice": {
-            "file": "Integration file: Files",
-            "line": "Integration line: Files",
-            "function_start": "Integration function start: Files",
-            "function_end": "Integration function end: Files"
+            "file": "Integration file: File",
+            "line": "Integration line: File",
+            "function_start": "Integration function start: File",
+            "function_end": "Integration function end: File"
         }
     }
 
