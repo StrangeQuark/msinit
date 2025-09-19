@@ -5,7 +5,9 @@ import platform
 networks = [
     'shared-network',
     'authdb-network',
-    'emaildb-network'
+    'emaildb-network',
+    'filedb-network',
+    'vaultdb-network'
 ]
 
 networkString = subprocess.run(['docker', 'network', 'ls'], capture_output=True, text=True).stdout.strip("\n")

@@ -34,8 +34,16 @@ app.post('/batch-download', async (req, res) => {
     const zip = new JSZip()
 
     //Add the launch script
-    const launchScript = await fs.readFile("launch_script.py", "utf8")
-    zip.file("launch_script.py", launchScript)
+    if(OS === "windows") {
+        const launchScript = await fs.readFile("launch_script.bat", "utf8")
+        zip.file("launch_script.bat", launchScript)
+    } else {
+        const launchScript = await fs.readFile("launch_script.sh", "utf8")
+        zip.file("launch_script.sh", launchScript)
+    }
+    // Python launch script
+    // const launchScript = await fs.readFile("launch_script.py", "utf8")
+    // zip.file("launch_script.py", launchScript)
 
 
     // Define services that are to be pruned from the repos
