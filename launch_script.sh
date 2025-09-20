@@ -3,10 +3,10 @@
 # --- CONFIG ---
 networks=(
     "shared-network"
-    "authdb-network"
-    "emaildb-network"
-    "filedb-network"
-    "vaultdb-network"
+    "authdb-network" # Integration line: Auth
+    "emaildb-network" # Integration line: Email
+    "filedb-network" # Integration line: File
+    "vaultdb-network" # Integration line: Vault
 )
 
 # --- FUNCTIONS ---
@@ -36,7 +36,7 @@ run_compose_linux() {
     local folder="$1"
     local term
     term=$(find_terminal_linux) || {
-        echo "❌ No supported terminal emulator found."
+        echo "No supported terminal emulator found."
         return 1
     }
 
@@ -53,7 +53,7 @@ run_compose_linux() {
             "$term" -e bash -c "cd '$folder' && docker-compose up --build" &
             ;;
         *)
-            echo "❌ Terminal $term is not fully supported."
+            echo "Terminal $term is not fully supported."
             ;;
     esac
 }
