@@ -2,7 +2,11 @@
 setlocal enabledelayedexpansion
 
 REM --- CONFIG ---
-set networks=shared-network authdb-network emaildb-network filedb-network vaultdb-network
+set networks=shared-network
+set networks=!networks! authdb-network  REM Integration line: Auth
+set networks=!networks! emaildb-network REM Integration line: Email
+set networks=!networks! filedb-network  REM Integration line: File
+set networks=!networks! vaultdb-network REM Integration line: Vault
 
 REM --- Create missing networks ---
 for %%N in (%networks%) do (

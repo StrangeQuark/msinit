@@ -11,6 +11,48 @@ const app = express()
 app.use(bodyParser.json())
 app.use(cors())
 
+// --- Helper: process integration markers in a file ---
+function processIntegrationMarkers(content, servicesToPrune) {
+    let modifiedContent = content
+    let shouldDeleteFile = false
+
+    for (const service in servicesToPrune) {
+        const { file: targetFile, line: targetLine, function_start, function_end } = servicesToPrune[service]
+
+        if (modifiedContent.includes(targetFile)) {
+            shouldDeleteFile = true
+            break
+        }
+
+        let insideFunctionBlock = false
+        let newContent = []
+
+        for (let line of modifiedContent.split('\n')) {
+            if (line.includes(function_start)) {
+                insideFunctionBlock = true
+                continue
+            }
+
+            if (insideFunctionBlock) {
+                if (line.includes(function_end)) {
+                    insideFunctionBlock = false
+                }
+                continue
+            }
+
+            if (line.includes(targetLine)) {
+                continue
+            }
+
+            newContent.push(line)
+        }
+
+        modifiedContent = newContent.join('\n')
+    }
+
+    return { modifiedContent, shouldDeleteFile }
+}
+
 app.post('/batch-download', async (req, res) => {
     const repositories = req.body.repositories
     const projectGroup = req.body.projectGroup
@@ -21,30 +63,16 @@ app.post('/batch-download', async (req, res) => {
         return res.status(400).send('Invalid projectGroup format. Expected format like "com.example".')
     }
 
-    const projectDomains = projectGroup.split(".");
+    const projectDomains = projectGroup.split(".")
     if (projectDomains.length < 2) {
-        return res.status(400).send('projectGroup must have at least two segments separated by a dot.');
+        return res.status(400).send('projectGroup must have at least two segments separated by a dot.')
     }
-
 
     if (!Array.isArray(repositories) || repositories.length === 0) {
         return res.status(400).send('Invalid or empty repository list')
     }
 
     const zip = new JSZip()
-
-    //Add the launch script
-    if(OS === "windows") {
-        const launchScript = await fs.readFile("launch_script.bat", "utf8")
-        zip.file("launch_script.bat", launchScript)
-    } else {
-        const launchScript = await fs.readFile("launch_script.sh", "utf8")
-        zip.file("launch_script.sh", launchScript)
-    }
-    // Python launch script
-    // const launchScript = await fs.readFile("launch_script.py", "utf8")
-    // zip.file("launch_script.py", launchScript)
-
 
     // Define services that are to be pruned from the repos
     const servicesToPrune = {
@@ -92,16 +120,26 @@ app.post('/batch-download', async (req, res) => {
         }
     }
 
-
-    for (const { repo, branch } of repositories) {
+    // Prune out repos that were requested
+    for (const { repo } of repositories) {
         delete servicesToPrune[repo]
+    }
+
+    // Add the launch script (bat/sh) with integration pruning
+    if (OS === "windows") {
+        let launchScript = await fs.readFile("launch_script.bat", "utf8")
+        const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
+        zip.file("launch_script.bat", modifiedContent)
+    } else {
+        let launchScript = await fs.readFile("launch_script.sh", "utf8")
+        const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
+        zip.file("launch_script.sh", modifiedContent)
     }
 
     for (const { repo, branch } of repositories) {
         const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`
 
         try {
-            // Fetch the ZIP file
             const response = await fetch(url)
             if (!response.ok) {
                 console.error(`Failed to fetch ${repo}: ${response.statusText}`)
@@ -109,114 +147,64 @@ app.post('/batch-download', async (req, res) => {
             }
 
             const blob = await response.arrayBuffer()
-            // Load the ZIP file
             const repoZip = await JSZip.loadAsync(blob)
 
-            // Iterate through the files in the ZIP and process them
             for (let fileName in repoZip.files) {
                 const file = repoZip.files[fileName]
-            
+
                 if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
                     zip.file(fileName, await file.async('nodebuffer'))
                     continue
                 }
 
-                // Validate projectGroup format
-                if (typeof projectGroup !== 'string' || !projectGroup.includes('.')) {
-                    return res.status(400).send('Invalid projectGroup. Use a format like "com.example"');
-                }
+                let pathParts = fileName.split("/")
 
-                const projectDomains = projectGroup.split(".");
-                if (projectDomains.length < 2) {
-                    return res.status(400).send('projectGroup must have at least two segments like "com.example"');
-                }
-
-                // Replace path segments intelligently
-                let pathParts = fileName.split("/");
-
-                // Only apply transformation inside known Java source roots
                 const javaSourceRootIndex = pathParts.findIndex((segment, i) =>
                     segment === "src" && (pathParts[i + 1] === "main" || pathParts[i + 1] === "test") && pathParts[i + 2] === "java"
-                );
+                )
 
                 if (javaSourceRootIndex !== -1) {
-                    const packageRootIndex = javaSourceRootIndex + 3;
+                    const packageRootIndex = javaSourceRootIndex + 3
 
                     if (
                         pathParts[packageRootIndex] === "com" &&
                         pathParts[packageRootIndex + 1] === "strangequark"
                     ) {
-                        pathParts[packageRootIndex] = projectDomains[0];
-                        pathParts[packageRootIndex + 1] = projectDomains[1];
+                        pathParts[packageRootIndex] = projectDomains[0]
+                        pathParts[packageRootIndex + 1] = projectDomains[1]
                     }
                 }
 
-                fileName = pathParts.join("/");
+                fileName = pathParts.join("/")
 
-            
-                if (!file.dir) { // Skip directories
+                if (!file.dir) {
                     try {
-                        const fileContent = await file.async("text")
-            
-                        let shouldDeleteFile = false
-                        let modifiedContent = fileContent.replaceAll("com.strangequark", projectGroup)
-                        modifiedContent = modifiedContent.replaceAll("21-alpine", javaVersion + "-alpine")
-                        modifiedContent = modifiedContent.replaceAll("<java.version>21", "<java.version>" + javaVersion)
+                        let fileContent = await file.async("text")
 
-                        if(OS === "windows") {
-                            modifiedContent = modifiedContent.replaceAll("\"start\": \"PORT=", "\"start\": \"set PORT=")
-                            modifiedContent = modifiedContent.replaceAll("react-scripts start", "&& react-scripts start")
+                        fileContent = fileContent.replaceAll("com.strangequark", projectGroup)
+                        fileContent = fileContent.replaceAll("21-alpine", javaVersion + "-alpine")
+                        fileContent = fileContent.replaceAll("<java.version>21", "<java.version>" + javaVersion)
+
+                        if (OS === "windows") {
+                            fileContent = fileContent.replaceAll("\"start\": \"PORT=", "\"start\": \"set PORT=")
+                            fileContent = fileContent.replaceAll("react-scripts start", "&& react-scripts start")
                         }
-            
-                        for (const service in servicesToPrune) {
-                            const { file: targetFile, line: targetLine, function_start, function_end } = servicesToPrune[service]
-            
-                            if (modifiedContent.includes(targetFile)) {
-                                shouldDeleteFile = true
-                                break // No need to process further if we're deleting it
-                            }
-            
-                            let insideFunctionBlock = false // Reset this for each service check
-                            let newContent = []
-            
-                            for (let line of modifiedContent.split('\n')) {
-                                if (line.includes(function_start)) {
-                                    insideFunctionBlock = true
-                                    continue // Skip this line
-                                }
-            
-                                if (insideFunctionBlock) {
-                                    if (line.includes(function_end)) {
-                                        insideFunctionBlock = false
-                                    }
-                                    continue // Skip lines inside the block
-                                }
-            
-                                if (line.includes(targetLine)) {
-                                    continue // Skip this line
-                                }
-            
-                                newContent.push(line)
-                            }
-            
-                            modifiedContent = newContent.join('\n')
-                        }
-            
+
+                        const { modifiedContent, shouldDeleteFile } = processIntegrationMarkers(fileContent, servicesToPrune)
+
                         if (!shouldDeleteFile) {
                             zip.file(fileName, modifiedContent)
                         }
-            
                     } catch (error) {
                         console.error(`Error processing file ${fileName}: ${error.message}`)
                     }
                 }
-            }            
+            }
         } catch (error) {
             console.error(`Error fetching ${repo}: ${error.message}`)
         }
     }
 
-    // Generate the combined ZIP and send it to the client
     zip.generateAsync({ type: "nodebuffer" }).then((content) => {
         res.set({
             "Content-Type": "application/zip",
@@ -224,8 +212,8 @@ app.post('/batch-download', async (req, res) => {
         })
         res.send(content)
     }).catch((error) => {
-        console.error('Error generating ZIP:', error);
-        res.status(500).send('Failed to generate ZIP file.');
+        console.error('Error generating ZIP:', error)
+        res.status(500).send('Failed to generate ZIP file.')
     })
 })
 
