@@ -117,6 +117,24 @@ app.post('/batch-download', async (req, res) => {
             "line": "Integration line: File",
             "function_start": "Integration function start: File",
             "function_end": "Integration function end: File"
+        },
+        "testservice": {
+            "file": "Integration file: Test",
+            "line": "Integration line: Test",
+            "function_start": "Integration function start: Test",
+            "function_end": "Integration function end: Test"
+        },
+        "loggerservice": {
+            "file": "Integration file: Logger",
+            "line": "Integration line: Logger",
+            "function_start": "Integration function start: Logger",
+            "function_end": "Integration function end: Logger"
+        },
+        "telemetryservice": {
+            "file": "Integration file: Telemetry",
+            "line": "Integration line: Telemetry",
+            "function_start": "Integration function start: Telemetry",
+            "function_end": "Integration function end: Telemetry"
         }
     }
 
