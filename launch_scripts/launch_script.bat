@@ -7,6 +7,7 @@ set networks=!networks! authdb-network  REM Integration line: Auth
 set networks=!networks! emaildb-network REM Integration line: Email
 set networks=!networks! filedb-network  REM Integration line: File
 set networks=!networks! vaultdb-network REM Integration line: Vault
+set networks=!networks! telemetrydb-network REM Integration line: Telemetry
 
 REM --- Create missing networks ---
 for %%N in (%networks%) do (
