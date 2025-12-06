@@ -8,6 +8,7 @@ networks = [
     'emaildb-network', # Integration line: Email
     'filedb-network', # Integration line: File
     'vaultdb-network' # Integration line: Vault
+    'telemetrydb-network' # Integration line: Telemetry
 ]
 
 networkString = subprocess.run(['docker', 'network', 'ls'], capture_output=True, text=True).stdout.strip("\n")

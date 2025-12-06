@@ -7,6 +7,7 @@ networks=(
     "emaildb-network" # Integration line: Email
     "filedb-network" # Integration line: File
     "vaultdb-network" # Integration line: Vault
+    "telemetrydb-network" # Integration line: Telemetry
 )
 
 # --- FUNCTIONS ---

@@ -145,11 +145,11 @@ app.post('/batch-download', async (req, res) => {
 
     // Add the launch script (bat/sh) with integration pruning
     if (OS === "windows") {
-        let launchScript = await fs.readFile("launch_script.bat", "utf8")
+        let launchScript = await fs.readFile("launch_scripts/launch_script.bat", "utf8")
         const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
         zip.file("launch_script.bat", modifiedContent)
     } else {
-        let launchScript = await fs.readFile("launch_script.sh", "utf8")
+        let launchScript = await fs.readFile("launch_scripts/launch_script.sh", "utf8")
         const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
         zip.file("launch_script.sh", modifiedContent)
     }

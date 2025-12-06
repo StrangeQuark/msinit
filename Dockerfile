@@ -7,7 +7,7 @@ COPY package*.json ./
 RUN npm install
 
 COPY server.js ./
-COPY launch_script.* ./
+COPY launch_scripts ./launch_scripts
 
 # Stage 2: Deploy
 FROM node:20-alpine AS runtime
@@ -21,6 +21,6 @@ COPY package*.json ./
 RUN npm install --production
 
 COPY --from=build /nodeservice/server.js ./
-COPY --from=build /nodeservice/launch_script.* ./
+COPY --from=build /nodeservice/launch_scripts ./launch_scripts
 
 CMD ["node", "server.js"]
