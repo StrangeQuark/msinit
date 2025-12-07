@@ -68,6 +68,58 @@ tell application "Terminal"
 end tell
 EOF
 }
+# Integration function start: Test
+find_container() {
+  local keyword="$1"
+  docker ps -a --format '{{.Names}}' | grep -i "$keyword" | head -n 1
+}
+
+wait_for_healthy() {
+  local keyword="$1"
+  local timeout=300
+  local start
+  start=$(date +%s)
+
+  echo "Waiting for container containing keyword '$keyword'..."
+
+  while true; do
+    local container
+    container=$(find_container "$keyword")
+
+    if [ -z "$container" ]; then
+      echo "Container matching '$keyword' not found yet..."
+      sleep 2
+      continue
+    fi
+
+    echo "Container matching '$keyword' was found"
+
+    local state
+    state=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null)
+
+    echo "Container matching '$keyword' state is '$state'"
+
+    if [ "$state" = "healthy" ]; then
+      echo "$container is healthy."
+      return 0
+    fi
+
+    if [ -z "$state" ]; then
+      echo "$container has no healthcheck or is not ready."
+    fi
+
+    local now
+    now=$(date +%s)
+
+    if (( now - start > timeout )); then
+      echo "Timed out waiting for container '$container' with keyword '$keyword'."
+      return 1
+    fi
+
+    sleep 2
+  done
+}
+# Integration function end: Test
 
 # --- MAIN ---
 create_networks
@@ -76,13 +128,34 @@ base_dir=$(pwd)
 system=$(uname)
 
 for folder in "$base_dir"/*; do
-    if [ -d "$folder" ] && [ -f "$folder/docker-compose.yml" ]; then
-        if [ "$system" = "Darwin" ]; then
-            run_compose_macos "$folder"
-        elif [ "$system" = "Linux" ]; then
-            run_compose_linux "$folder"
-        else
-            echo "Unsupported OS: $system"
-        fi
+  if [ -d "$folder" ] && [ -f "$folder/docker-compose.yml" ]; then
+    # Integration function start: Test
+    if [[ "$folder" == *"testservice"* ]]; then
+      testservice_folder="$folder"
+      continue
     fi
+    # Integration function end: Test
+    if [ "$system" = "Darwin" ]; then
+      run_compose_macos "$folder"
+    elif [ "$system" = "Linux" ]; then
+      run_compose_linux "$folder"
+    else
+      echo "Unsupported OS: $system"
+    fi
+  fi
 done
+# Integration function start: Test
+if [ -n "$testservice_folder" ]; then
+  echo "Waiting for all services to start..."
+
+  wait_for_healthy "auth-service" # Integration line: Auth
+  wait_for_healthy "email-service" # Integration line: Email
+  wait_for_healthy "file-service" # Integration line: File
+  wait_for_healthy "vault-service" # Integration line: Vault
+  wait_for_healthy "react-service" # Integration line: React
+
+  echo "Running testservice and capturing output..."
+  output=$(cd "$testservice_folder" && docker-compose up --build 2>&1)
+  echo "$output"
+fi
+# Integration function end: Test
