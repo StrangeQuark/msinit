@@ -235,4 +235,8 @@ app.post('/batch-download', async (req, res) => {
     })
 })
 
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'UP' })
+})
+
 app.listen(3000, () => console.log('Server running on http://localhost:3000'))
