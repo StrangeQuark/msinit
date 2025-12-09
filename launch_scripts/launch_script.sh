@@ -134,6 +134,18 @@ for folder in "$base_dir"/*; do
       testservice_folder="$folder"
       continue
     fi
+    # Integration function start: Logger
+    if [[ "$folder" == *"loggerservice"* ]]; then
+      loggerservice_folder="$folder"
+      continue
+    fi
+    # Integration function end: Logger
+    # Integration function start: Telemetry
+    if [[ "$folder" == *"telemetryservice"* ]]; then
+      telemetryservice_folder="$folder"
+      continue
+    fi
+    # Integration function end: Telemetry
     # Integration function end: Test
     if [ "$system" = "Darwin" ]; then
       run_compose_macos "$folder"
@@ -158,8 +170,8 @@ if [ -n "$testservice_folder" ]; then
 
   cd "$testservice_folder"
 
-  # Start testservice detached
-  docker-compose up --build -d
+  # Start testservice
+  docker-compose up --build
 
   # Identify the container
   container=$(docker-compose ps -q test-service)
@@ -177,10 +189,32 @@ if [ -n "$testservice_folder" ]; then
       echo "Testservice passed."
   else
       echo "Testservice FAILED with exit code $exit_code"
+      echo "Exit code: $exit_code"
+      exit "$exit_code"
   fi
 
   echo "Tearing down test-service container"
   docker-compose down -v
+  # Integration function start: Logger
+  echo "Starting logger service"
+  if [ "$system" = "Darwin" ]; then
+    run_compose_macos "$loggerservice_folder"
+  elif [ "$system" = "Linux" ]; then
+    run_compose_linux "$loggerservice_folder"
+  else
+    echo "Unsupported OS: $system"
+  fi
+  # Integration function end: Logger
+  # Integration function start: Telemetry
+  echo "Starting telemetry service"
+  if [ "$system" = "Darwin" ]; then
+    run_compose_macos "$telemetryservice_folder"
+  elif [ "$system" = "Linux" ]; then
+    run_compose_linux "$telemetryservice_folder"
+  else
+    echo "Unsupported OS: $system"
+  fi
+  # Integration function end: Telemetry
 
   echo "Exit code: $exit_code"
   exit "$exit_code"
