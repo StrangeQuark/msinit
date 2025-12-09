@@ -154,8 +154,35 @@ if [ -n "$testservice_folder" ]; then
   wait_for_healthy "vault-service" # Integration line: Vault
   wait_for_healthy "react-service" # Integration line: React
 
-  echo "Running testservice and capturing output..."
-  output=$(cd "$testservice_folder" && docker-compose up --build 2>&1)
-  echo "$output"
+  echo "Running testservice..."
+
+  cd "$testservice_folder"
+
+  # Start testservice detached
+  docker-compose up --build -d
+
+  # Identify the container
+  container=$(docker-compose ps -q test-service)
+
+  # Wait for completion
+  docker wait "$container"
+  exit_code=$?
+
+  # Retrieve logs for reporting (optional)
+  docker logs "$container" > test-service.log
+  echo "Testservice output saved to test-service.log"
+
+  # Evaluate result
+  if [ "$exit_code" -eq 0 ]; then
+      echo "Testservice passed."
+  else
+      echo "Testservice FAILED with exit code $exit_code"
+  fi
+
+  echo "Tearing down test-service container"
+  docker-compose down -v
+
+  echo "Exit code: $exit_code"
+  exit "$exit_code"
 fi
 # Integration function end: Test
