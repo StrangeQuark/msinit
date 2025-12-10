@@ -165,6 +165,7 @@ if [ -n "$testservice_folder" ]; then
   wait_for_healthy "file-service" # Integration line: File
   wait_for_healthy "vault-service" # Integration line: Vault
   wait_for_healthy "react-service" # Integration line: React
+  wait_for_healthy "gateway-service" # Integration line: Gateway
 
   echo "Running testservice..."
 
@@ -215,6 +216,8 @@ if [ -n "$testservice_folder" ]; then
     echo "Unsupported OS: $system"
   fi
   # Integration function end: Telemetry
+  wait_for_healthy "logger-service" # Integration line: Logger
+  wait_for_healthy "telemetry-service" # Integration line: Telemetry
 
   echo "Exit code: $exit_code"
   exit "$exit_code"
