@@ -178,8 +178,7 @@ if [ -n "$testservice_folder" ]; then
   container=$(docker-compose ps -q test-service)
 
   # Wait for completion
-  docker wait "$container"
-  exit_code=$?
+  exit_code=$(docker wait "$container")
 
   # Retrieve logs for reporting (optional)
   docker logs "$container" > test-service.log
@@ -191,6 +190,17 @@ if [ -n "$testservice_folder" ]; then
   else
       echo "Testservice FAILED with exit code $exit_code"
       echo "Exit code: $exit_code"
+
+      echo "Tearing down all docker containers"
+      for folder in "$base_dir"/*; do
+          if [ -d "$folder" ] && [ -f "$folder/docker-compose.yml" ]; then
+              (
+                  cd "$folder"
+                  docker compose down -v --rmi all
+              )
+          fi
+      done
+
       exit "$exit_code"
   fi
 
