@@ -196,7 +196,7 @@ if [ -n "$testservice_folder" ]; then
           if [ -d "$folder" ] && [ -f "$folder/docker-compose.yml" ]; then
               (
                   cd "$folder"
-                  docker compose down -v --rmi all
+                  docker-compose down -v
               )
           fi
       done
