@@ -4,6 +4,11 @@ set -euo pipefail
 
 ROOT_DIR="$(pwd)"
 KEEP_PATH="$ROOT_DIR/test_script.sh"
+REPORT_FILE="$ROOT_DIR/test_report.csv"
+FAILED_RUNS=0
+
+# Initialize report
+echo "services,result" > "$REPORT_FILE"
 
 docker_cleanup() {
   echo "Starting Docker cleanup..."
@@ -41,13 +46,10 @@ filesystem_cleanup() {
       .|..) continue ;;
     esac
 
-    # Skip test_scripts directory (but clean its contents selectively)
-    if [ "$item" != "$ROOT_DIR/test_script.sh" ]; then
-      rm -rf "$item"
+    # Skip test_script.sh and test_report.csv
+    if [ "$item" != "$KEEP_PATH" ] && [ "$item" != "$REPORT_FILE" ]; then
+        rm -rf "$item"
     fi
-
-    # Delete everything else
-    # rm -rf "$item"
   done
 
   echo "Filesystem cleanup complete"
@@ -61,33 +63,81 @@ cleanup() {
 # Ensure cleanup always runs
 trap cleanup EXIT INT TERM
 
-curl -X POST http://localhost:3000/batch-download \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectGroup":"com.example",
-    "javaVersion":"21",
-    "OS":"linux",
-    "repositories":[
-      {"repo":"authservice","branch":"main"},
-      {"repo":"emailservice","branch":"main"},
-      {"repo":"vaultservice","branch":"main"},
-      {"repo":"fileservice","branch":"main"},
-      {"repo":"gatewayservice","branch":"main"},
-      {"repo":"loggerservice","branch":"main"},
-      {"repo":"telemetryservice","branch":"main"},
-      {"repo":"reactservice","branch":"main"},
-      {"repo":"testservice","branch":"main"}
-    ]
-  }' > out.zip
+# --- Begin service combinations loop ---
 
-unzip -o out.zip
+SERVICES=(
+  authservice
+  emailservice
+  vaultservice
+  fileservice
+  reactservice
+  gatewayservice
+  telemetryservice
+  loggerservice
+)
 
-bash launch_script.sh
-exit_code=$?
+TESTSERVICE='{"repo":"testservice","branch":"main"}'
 
-if [ "$exit_code" -eq 0 ]; then
-  echo "launch_script.sh succeeded"
-else
-  echo "launch_script.sh failed with exit code $exit_code"
-  exit "$exit_code"
+SERVICE_COUNT="${#SERVICES[@]}"
+TOTAL_COMBINATIONS=$((1 << SERVICE_COUNT))
+
+for ((mask=1; mask<TOTAL_COMBINATIONS; mask++)); do
+  REPO_JSON=()
+  SERVICE_NAMES=()
+
+  for ((i=0; i<SERVICE_COUNT; i++)); do
+    if (( mask & (1 << i) )); then
+      svc="${SERVICES[i]}"
+      REPO_JSON+=("{\"repo\":\"$svc\",\"branch\":\"main\"}")
+      SERVICE_NAMES+=("$svc")
+    fi
+  done
+
+  # Always include testservice
+  REPO_JSON+=("$TESTSERVICE")
+  SERVICE_NAMES+=("testservice")
+
+  REPOS_PAYLOAD=$(IFS=,; echo "${REPO_JSON[*]}")
+  SERVICE_STRING=$(IFS=+; echo "${SERVICE_NAMES[*]}")
+
+  echo "========================================"
+  echo "Running combination: $SERVICE_STRING"
+  echo "========================================"
+
+  curl -X POST http://localhost:3000/batch-download \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"projectGroup\":\"com.example\",
+      \"javaVersion\":\"21\",
+      \"OS\":\"linux\",
+      \"repositories\":[${REPOS_PAYLOAD}]
+    }" > out.zip
+
+  unzip -o out.zip
+
+  bash launch_script.sh
+  exit_code=$?
+
+  if [ "$exit_code" -eq 0 ]; then
+    echo "$SERVICE_STRING,PASS" >> "$REPORT_FILE"
+    echo "Result: PASS"
+  else
+    echo "$SERVICE_STRING,FAIL" >> "$REPORT_FILE"
+    echo "Result: FAIL (exit code $exit_code)"
+    FAILED_RUNS=$((FAILED_RUNS + 1))
+  fi
+
+  echo "Running cleanup after combination: $SERVICE_STRING"
+  cleanup
+done
+
+echo "========================================"
+echo "All combinations completed"
+echo "Report saved to: $REPORT_FILE"
+echo "Failed combinations: $FAILED_RUNS"
+echo "========================================"
+
+# Optional: exit non-zero if any combination failed
+if [ "$FAILED_RUNS" -ne 0 ]; then
+  exit 1
 fi
