@@ -41,14 +41,12 @@ filesystem_cleanup() {
   fi
 
   for item in "$ROOT_DIR"/* "$ROOT_DIR"/.*; do
-    # Skip . and ..
     case "$(basename "$item")" in
       .|..) continue ;;
     esac
 
-    # Skip test_script.sh and test_report.csv
     if [ "$item" != "$KEEP_PATH" ] && [ "$item" != "$REPORT_FILE" ]; then
-        rm -rf "$item"
+      rm -rf "$item"
     fi
   done
 
@@ -65,7 +63,8 @@ trap cleanup EXIT INT TERM
 
 # --- Begin service combinations loop ---
 
-SERVICES=(
+# Default services
+DEFAULT_SERVICES=(
   authservice
   emailservice
   vaultservice
@@ -75,6 +74,37 @@ SERVICES=(
   telemetryservice
   loggerservice
 )
+
+MODE="subset"   # subset | must-include
+SERVICES=()
+INCLUDE_SERVICES=()
+
+# Parse arguments
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -mi|--must-include)
+      MODE="must-include"
+      shift
+      while [ "$#" -gt 0 ] && [[ "$1" != -* ]]; do
+        INCLUDE_SERVICES+=("$1")
+        shift
+      done
+      ;;
+    *)
+      SERVICES+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Resolve services based on mode
+if [ "$MODE" = "must-include" ]; then
+  SERVICES=("${DEFAULT_SERVICES[@]}")
+else
+  if [ "${#SERVICES[@]}" -eq 0 ]; then
+    SERVICES=("${DEFAULT_SERVICES[@]}")
+  fi
+fi
 
 TESTSERVICE='{"repo":"testservice","branch":"main"}'
 
@@ -92,6 +122,20 @@ for ((mask=1; mask<TOTAL_COMBINATIONS; mask++)); do
       SERVICE_NAMES+=("$svc")
     fi
   done
+
+  # Enforce must-include constraints
+  if [ "$MODE" = "must-include" ]; then
+    for required in "${INCLUDE_SERVICES[@]}"; do
+      found=false
+      for svc in "${SERVICE_NAMES[@]}"; do
+        if [ "$svc" = "$required" ]; then
+          found=true
+          break
+        fi
+      done
+      [ "$found" = false ] && continue 2
+    done
+  fi
 
   # Always include testservice
   REPO_JSON+=("$TESTSERVICE")
@@ -137,7 +181,6 @@ echo "Report saved to: $REPORT_FILE"
 echo "Failed combinations: $FAILED_RUNS"
 echo "========================================"
 
-# Optional: exit non-zero if any combination failed
 if [ "$FAILED_RUNS" -ne 0 ]; then
   exit 1
 fi
