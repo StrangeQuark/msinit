@@ -140,7 +140,7 @@ app.post('/batch-download', async (req, res) => {
     }
 
     if(CICD === "jenkins") {
-        delete servicesToPrune["jenkinsservice"]
+        repositories.push({repo: "jenkinsservice", branch: "main"})
     }
 
     // Prune out repos that were requested
