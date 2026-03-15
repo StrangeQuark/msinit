@@ -58,6 +58,7 @@ app.post('/batch-download', async (req, res) => {
     const projectGroup = req.body.projectGroup
     const javaVersion = req.body.javaVersion
     const OS = req.body.OS
+    const CICD = req.body.CICD
 
     if (typeof projectGroup !== 'string' || !projectGroup.includes('.')) {
         return res.status(400).send('Invalid projectGroup format. Expected format like "com.example".')
@@ -118,12 +119,6 @@ app.post('/batch-download', async (req, res) => {
             "function_start": "Integration function start: File",
             "function_end": "Integration function end: File"
         },
-        "testservice": {
-            "file": "Integration file: Test",
-            "line": "Integration line: Test",
-            "function_start": "Integration function start: Test",
-            "function_end": "Integration function end: Test"
-        },
         "loggerservice": {
             "file": "Integration file: Logger",
             "line": "Integration line: Logger",
@@ -135,7 +130,17 @@ app.post('/batch-download', async (req, res) => {
             "line": "Integration line: Telemetry",
             "function_start": "Integration function start: Telemetry",
             "function_end": "Integration function end: Telemetry"
+        },
+        "jenkinsservice": {
+            "file": "Integration file: Jenkins",
+            "line": "Integration line: Jenkins",
+            "function_start": "Integration function start: Jenkins",
+            "function_end": "Integration function end: Jenkins"
         }
+    }
+
+    if(CICD === "jenkins") {
+        repositories.push({repo: "jenkinsservice", branch: "main"})
     }
 
     // Prune out repos that were requested
