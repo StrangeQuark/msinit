@@ -1,12 +1,12 @@
 pipeline {
-    agent { label 'Host PC' }
+    agent { label 'linux-agent' }
 
     stages {
         stage("Deploy & Health Check") {
             steps {
                 script {
                     try {
-                        bat "docker-compose up --build -d"
+                        sh "docker compose up --build -d"
 
                         def maxRetries = 4 * 10
                         def retryInterval = 15
@@ -30,13 +30,13 @@ pipeline {
 
                         if (!success) {
                             echo "Health check ultimately failed. Tearing down containers."
-                            bat "docker-compose down"
+                            sh "docker compose down"
                             error("Deployment failed: service not healthy.")
                         }
 
                     } catch (ex) {
                         echo "Unexpected failure: ${ex.getMessage()}"
-                        bat "docker-compose down"
+                        sh "docker compose down"
                         error("Deployment crashed.")
                     }
                 }
