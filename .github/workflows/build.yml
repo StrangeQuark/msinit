@@ -1,0 +1,42 @@
+# Integration file: GHA
+name: MSINIT Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux-agent]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Deploy & Health Check
+        run: |
+          set -e
+
+          docker compose up --build -d
+
+          max_retries=40
+          retry_interval=15
+          success=0
+
+          for i in $(seq 1 $max_retries); do
+            echo "Health check attempt $i..."
+
+            if curl -s -f http://localhost:3000health > /dev/null; then
+              echo "App is healthy"
+              success=1
+              break
+            else
+              echo "Health check failed, retrying in $retry_interval seconds..."
+              sleep $retry_interval
+            fi
+          done
+
+          if [ $success -ne 1 ]; then
+            echo "Health check ultimately failed. Tearing down containers."
+            docker compose down
+            exit 1
+          fi
