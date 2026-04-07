@@ -136,11 +136,21 @@ app.post('/batch-download', async (req, res) => {
             "line": "Integration line: Jenkins",
             "function_start": "Integration function start: Jenkins",
             "function_end": "Integration function end: Jenkins"
+        },
+        "githubactions": {
+            "file": "Integration file: GHA",
+            "line": "Integration line: GHA",
+            "function_start": "Integration function start: GHA",
+            "function_end": "Integration function end: GHA"
         }
     }
 
     if(CICD === "jenkins") {
         repositories.push({repo: "jenkinsservice", branch: "main"})
+    }
+
+    if(CICD === "githubactions") {
+        repositories.push({repo: "githubactions", branch: "main"})
     }
 
     // Prune out repos that were requested
