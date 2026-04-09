@@ -1,11 +1,11 @@
 services:
-  msinit-backend-service:
+  msinit:
     build: .
     networks:
       - "msinit-network"
     ports:
       - "3000:3000"
-    container_name: msinit-backend-service
+    container_name: msinit
 networks:
   msinit-network:
     external: true
