@@ -54,200 +54,205 @@ function processIntegrationMarkers(content, servicesToPrune) {
 }
 
 app.post('/batch-download', async (req, res) => {
-    const repositories = req.body.repositories
-    const projectGroup = req.body.projectGroup
-    const javaVersion = req.body.javaVersion
-    const OS = req.body.OS
-    const CICD = req.body.CICD
+    try {
+        const repositories = req.body.repositories
+        const projectGroup = req.body.projectGroup
+        const javaVersion = req.body.javaVersion
+        const OS = req.body.OS
+        const CICD = req.body.CICD
 
-    if (typeof projectGroup !== 'string' || !projectGroup.includes('.')) {
-        return res.status(400).send('Invalid projectGroup format. Expected format like "com.example".')
-    }
-
-    const projectDomains = projectGroup.split(".")
-    if (projectDomains.length < 2) {
-        return res.status(400).send('projectGroup must have at least two segments separated by a dot.')
-    }
-
-    if (!Array.isArray(repositories) || repositories.length === 0) {
-        return res.status(400).send('Invalid or empty repository list')
-    }
-
-    const zip = new JSZip()
-
-    // Define services that are to be pruned from the repos
-    const servicesToPrune = {
-        "emailservice": {
-            "file": "Integration file: Email",
-            "line": "Integration line: Email",
-            "function_start": "Integration function start: Email",
-            "function_end": "Integration function end: Email"
-        },
-        "authservice": {
-            "file": "Integration file: Auth",
-            "line": "Integration line: Auth",
-            "function_start": "Integration function start: Auth",
-            "function_end": "Integration function end: Auth"
-        },
-        "reactservice": {
-            "file": "Integration file: React",
-            "line": "Integration line: React",
-            "function_start": "Integration function start: React",
-            "function_end": "Integration function end: React"
-        },
-        "testservice": {
-            "file": "Integration file: Test",
-            "line": "Integration line: Test",
-            "function_start": "Integration function start: Test",
-            "function_end": "Integration function end: Test"
-        },
-        "gatewayservice": {
-            "file": "Integration file: Gateway",
-            "line": "Integration line: Gateway",
-            "function_start": "Integration function start: Gateway",
-            "function_end": "Integration function end: Gateway"
-        },
-        "vaultservice": {
-            "file": "Integration file: Vault",
-            "line": "Integration line: Vault",
-            "function_start": "Integration function start: Vault",
-            "function_end": "Integration function end: Vault"
-        },
-        "fileservice": {
-            "file": "Integration file: File",
-            "line": "Integration line: File",
-            "function_start": "Integration function start: File",
-            "function_end": "Integration function end: File"
-        },
-        "loggerservice": {
-            "file": "Integration file: Logger",
-            "line": "Integration line: Logger",
-            "function_start": "Integration function start: Logger",
-            "function_end": "Integration function end: Logger"
-        },
-        "telemetryservice": {
-            "file": "Integration file: Telemetry",
-            "line": "Integration line: Telemetry",
-            "function_start": "Integration function start: Telemetry",
-            "function_end": "Integration function end: Telemetry"
-        },
-        "jenkinsservice": {
-            "file": "Integration file: Jenkins",
-            "line": "Integration line: Jenkins",
-            "function_start": "Integration function start: Jenkins",
-            "function_end": "Integration function end: Jenkins"
-        },
-        "githubactions": {
-            "file": "Integration file: GHA",
-            "line": "Integration line: GHA",
-            "function_start": "Integration function start: GHA",
-            "function_end": "Integration function end: GHA"
+        if (typeof projectGroup !== 'string' || !projectGroup.includes('.')) {
+            return res.status(400).send('Invalid projectGroup format. Expected format like "com.example".')
         }
-    }
 
-    if(CICD === "jenkins") {
-        repositories.push({repo: "jenkinsservice", branch: "main"})
-    }
+        const projectDomains = projectGroup.split(".")
+        if (projectDomains.length < 2) {
+            return res.status(400).send('projectGroup must have at least two segments separated by a dot.')
+        }
 
-    if(CICD === "githubactions") {
-        repositories.push({repo: "githubactions", branch: "main"})
-    }
+        if (!Array.isArray(repositories) || repositories.length === 0) {
+            return res.status(400).send('Invalid or empty repository list')
+        }
 
-    // Prune out repos that were requested
-    for (const { repo } of repositories) {
-        delete servicesToPrune[repo]
-    }
+        const zip = new JSZip()
 
-    // Add the launch script (bat/sh) with integration pruning
-    if (OS === "windows") {
-        let launchScript = await fs.readFile("launch_scripts/launch_script.bat", "utf8")
-        const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
-        zip.file("launch_script.bat", modifiedContent)
-    } else {
-        let launchScript = await fs.readFile("launch_scripts/launch_script.sh", "utf8")
-        const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
-        zip.file("launch_script.sh", modifiedContent)
-    }
-
-    for (const { repo, branch } of repositories) {
-        const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`
-
-        try {
-            const response = await fetch(url)
-            if (!response.ok) {
-                console.error(`Failed to fetch ${repo}: ${response.statusText}`)
-                continue
+        // Define services that are to be pruned from the repos
+        const servicesToPrune = {
+            "emailservice": {
+                "file": "Integration file: Email",
+                "line": "Integration line: Email",
+                "function_start": "Integration function start: Email",
+                "function_end": "Integration function end: Email"
+            },
+            "authservice": {
+                "file": "Integration file: Auth",
+                "line": "Integration line: Auth",
+                "function_start": "Integration function start: Auth",
+                "function_end": "Integration function end: Auth"
+            },
+            "reactservice": {
+                "file": "Integration file: React",
+                "line": "Integration line: React",
+                "function_start": "Integration function start: React",
+                "function_end": "Integration function end: React"
+            },
+            "testservice": {
+                "file": "Integration file: Test",
+                "line": "Integration line: Test",
+                "function_start": "Integration function start: Test",
+                "function_end": "Integration function end: Test"
+            },
+            "gatewayservice": {
+                "file": "Integration file: Gateway",
+                "line": "Integration line: Gateway",
+                "function_start": "Integration function start: Gateway",
+                "function_end": "Integration function end: Gateway"
+            },
+            "vaultservice": {
+                "file": "Integration file: Vault",
+                "line": "Integration line: Vault",
+                "function_start": "Integration function start: Vault",
+                "function_end": "Integration function end: Vault"
+            },
+            "fileservice": {
+                "file": "Integration file: File",
+                "line": "Integration line: File",
+                "function_start": "Integration function start: File",
+                "function_end": "Integration function end: File"
+            },
+            "loggerservice": {
+                "file": "Integration file: Logger",
+                "line": "Integration line: Logger",
+                "function_start": "Integration function start: Logger",
+                "function_end": "Integration function end: Logger"
+            },
+            "telemetryservice": {
+                "file": "Integration file: Telemetry",
+                "line": "Integration line: Telemetry",
+                "function_start": "Integration function start: Telemetry",
+                "function_end": "Integration function end: Telemetry"
+            },
+            "jenkinsservice": {
+                "file": "Integration file: Jenkins",
+                "line": "Integration line: Jenkins",
+                "function_start": "Integration function start: Jenkins",
+                "function_end": "Integration function end: Jenkins"
+            },
+            "githubactions": {
+                "file": "Integration file: GHA",
+                "line": "Integration line: GHA",
+                "function_start": "Integration function start: GHA",
+                "function_end": "Integration function end: GHA"
             }
+        }
 
-            const blob = await response.arrayBuffer()
-            const repoZip = await JSZip.loadAsync(blob)
+        if(CICD === "jenkins") {
+            repositories.push({repo: "jenkinsservice", branch: "main"})
+        }
 
-            for (let fileName in repoZip.files) {
-                const file = repoZip.files[fileName]
+        if(CICD === "githubactions") {
+            repositories.push({repo: "githubactions", branch: "main"})
+        }
 
-                if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
-                    zip.file(fileName, await file.async('nodebuffer'))
+        // Prune out repos that were requested
+        for (const { repo } of repositories) {
+            delete servicesToPrune[repo]
+        }
+
+        // Add the launch script (bat/sh) with integration pruning
+        if (OS === "windows") {
+            let launchScript = await fs.readFile("launch_scripts/launch_script.bat", "utf8")
+            const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
+            zip.file("launch_script.bat", modifiedContent)
+        } else {
+            let launchScript = await fs.readFile("launch_scripts/launch_script.sh", "utf8")
+            const { modifiedContent } = processIntegrationMarkers(launchScript, servicesToPrune)
+            zip.file("launch_script.sh", modifiedContent)
+        }
+
+        for (const { repo, branch } of repositories) {
+            const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`
+
+            try {
+                const response = await fetch(url)
+                if (!response.ok) {
+                    console.error(`Failed to fetch ${repo}: ${response.statusText}`)
                     continue
                 }
 
-                let pathParts = fileName.split("/")
+                const blob = await response.arrayBuffer()
+                const repoZip = await JSZip.loadAsync(blob)
 
-                const javaSourceRootIndex = pathParts.findIndex((segment, i) =>
-                    segment === "src" && (pathParts[i + 1] === "main" || pathParts[i + 1] === "test") && pathParts[i + 2] === "java"
-                )
+                for (let fileName in repoZip.files) {
+                    const file = repoZip.files[fileName]
 
-                if (javaSourceRootIndex !== -1) {
-                    const packageRootIndex = javaSourceRootIndex + 3
+                    if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
+                        zip.file(fileName, await file.async('nodebuffer'))
+                        continue
+                    }
 
-                    if (
-                        pathParts[packageRootIndex] === "com" &&
-                        pathParts[packageRootIndex + 1] === "strangequark"
-                    ) {
-                        pathParts[packageRootIndex] = projectDomains[0]
-                        pathParts[packageRootIndex + 1] = projectDomains[1]
+                    let pathParts = fileName.split("/")
+
+                    const javaSourceRootIndex = pathParts.findIndex((segment, i) =>
+                        segment === "src" && (pathParts[i + 1] === "main" || pathParts[i + 1] === "test") && pathParts[i + 2] === "java"
+                    )
+
+                    if (javaSourceRootIndex !== -1) {
+                        const packageRootIndex = javaSourceRootIndex + 3
+
+                        if (
+                            pathParts[packageRootIndex] === "com" &&
+                            pathParts[packageRootIndex + 1] === "strangequark"
+                        ) {
+                            pathParts[packageRootIndex] = projectDomains[0]
+                            pathParts[packageRootIndex + 1] = projectDomains[1]
+                        }
+                    }
+
+                    fileName = pathParts.join("/")
+
+                    if (!file.dir) {
+                        try {
+                            let fileContent = await file.async("text")
+
+                            fileContent = fileContent.replaceAll("com.strangequark", projectGroup)
+                            fileContent = fileContent.replaceAll("21-alpine", javaVersion + "-alpine")
+                            fileContent = fileContent.replaceAll("<java.version>21", "<java.version>" + javaVersion)
+
+                            if (OS === "windows") {
+                                fileContent = fileContent.replaceAll("\"start\": \"PORT=", "\"start\": \"set PORT=")
+                                fileContent = fileContent.replaceAll("react-scripts start", "&& react-scripts start")
+                            }
+
+                            const { modifiedContent, shouldDeleteFile } = processIntegrationMarkers(fileContent, servicesToPrune)
+
+                            if (!shouldDeleteFile) {
+                                zip.file(fileName, modifiedContent)
+                            }
+                        } catch (error) {
+                            console.error(`Error processing file ${fileName}: ${error.message}`)
+                        }
                     }
                 }
-
-                fileName = pathParts.join("/")
-
-                if (!file.dir) {
-                    try {
-                        let fileContent = await file.async("text")
-
-                        fileContent = fileContent.replaceAll("com.strangequark", projectGroup)
-                        fileContent = fileContent.replaceAll("21-alpine", javaVersion + "-alpine")
-                        fileContent = fileContent.replaceAll("<java.version>21", "<java.version>" + javaVersion)
-
-                        if (OS === "windows") {
-                            fileContent = fileContent.replaceAll("\"start\": \"PORT=", "\"start\": \"set PORT=")
-                            fileContent = fileContent.replaceAll("react-scripts start", "&& react-scripts start")
-                        }
-
-                        const { modifiedContent, shouldDeleteFile } = processIntegrationMarkers(fileContent, servicesToPrune)
-
-                        if (!shouldDeleteFile) {
-                            zip.file(fileName, modifiedContent)
-                        }
-                    } catch (error) {
-                        console.error(`Error processing file ${fileName}: ${error.message}`)
-                    }
-                }
+            } catch (error) {
+                console.error(`Error fetching ${repo}: ${error.message}`)
             }
-        } catch (error) {
-            console.error(`Error fetching ${repo}: ${error.message}`)
         }
-    }
 
-    zip.generateAsync({ type: "nodebuffer" }).then((content) => {
-        res.set({
-            "Content-Type": "application/zip",
-            "Content-Disposition": 'attachment filename="repositories_with_batch.zip"'
+        zip.generateAsync({ type: "nodebuffer" }).then((content) => {
+            res.set({
+                "Content-Type": "application/zip",
+                "Content-Disposition": 'attachment filename="repositories_with_batch.zip"'
+            })
+            res.send(content)
+        }).catch((error) => {
+            console.error('Error generating ZIP:', error)
+            res.status(500).send('Failed to generate ZIP file.')
         })
-        res.send(content)
-    }).catch((error) => {
-        console.error('Error generating ZIP:', error)
-        res.status(500).send('Failed to generate ZIP file.')
-    })
+    } catch (error) {
+        console.error('Batch download error:', error)
+        res.status(500).send("Internal Server Error")
+    }
 })
 
 app.get('/health', (req, res) => {
