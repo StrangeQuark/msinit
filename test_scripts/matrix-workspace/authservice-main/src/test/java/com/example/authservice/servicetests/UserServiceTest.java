@@ -1,0 +1,473 @@
+package com.example.authservice.servicetests;
+
+import com.example.authservice.authorization.Authorization;
+import com.example.authservice.authorization.RoleAuthorization;
+import com.example.authservice.error.ErrorResponse;
+import com.example.authservice.utility.FileUtility;
+import com.example.authservice.utility.VaultUtility;
+import com.example.authservice.user.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.ResourceAccessException;
+
+import java.util.*;
+
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+public class UserServiceTest extends BaseServiceTest {
+
+    @Autowired
+    private UserService userService;
+    @MockitoBean
+    private FileUtility fileUtility;
+    @MockitoBean
+    private VaultUtility vaultUtility;
+
+    @BeforeEach
+    void setupUtilities() {
+        ReflectionTestUtils.setField(userService, "emailserviceIntegration", true);
+        ReflectionTestUtils.setField(userService, "fileserviceIntegration", true);
+        ReflectionTestUtils.setField(userService, "vaultserviceIntegration", true);
+        when(fileUtility.deleteUserFromAllCollections(anyString(), anyString()))
+                .thenReturn(ResponseEntity.ok().build());
+        when(vaultUtility.deleteUserFromAllServices(anyString(), anyString()))
+                .thenReturn(ResponseEntity.ok().build());
+    }
+
+    @Test
+    void updatePasswordTest() {
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+        userRequest.setNewPassword("newPassword");
+
+        ResponseEntity<?> response =  userService.updatePassword(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("Password successfully updated", ((UserResponse) response.getBody()).getMessage());
+        Assertions.assertTrue(response.getHeaders().getFirst("Set-Cookie").contains("refresh_token="));
+    }
+
+    @Test
+    void addAuthorizationsToUserTest() {
+        setupSuperUser();
+
+        authorizationRepository.save(new Authorization("Auth 1"));
+        authorizationRepository.save(new Authorization("test 2"));
+
+        Set<String> authorizations = new HashSet<>();
+        authorizations.add("Auth 1");
+        authorizations.add("test 2");
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setAuthorizations(authorizations);
+
+        ResponseEntity<?> response =  userService.addAuthorizationsToUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("Authorizations successfully added", ((UserResponse) response.getBody()).getMessage());
+        Assertions.assertEquals(2, userRepository.findByUsername(testUser.getUsername()).get().getAuthorizations().size());
+    }
+
+    @Test
+    void removeAuthorizationsTest() {
+        Authorization authorization = authorizationRepository.save(new Authorization("testAuthorization1"));
+        testUser.getAuthorizations().add(authorization);
+        userRepository.save(testUser);
+        setupSuperUser();
+
+        Set<String> authorizationsToRemove = new HashSet<>();
+        authorizationsToRemove.add("testAuthorization1");
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setAuthorizations(authorizationsToRemove);
+
+        ResponseEntity<?> response =  userService.removeAuthorizations(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("Authorizations successfully removed", ((UserResponse) response.getBody()).getMessage());
+    }
+
+    @Test
+    void getAdminUserTest() {
+        Authorization authorization = authorizationRepository.save(new Authorization("TEST_AUTHORIZATION_" + UUID.randomUUID()));
+        Authorization roleAuthorization = authorizationRepository.save(new Authorization("ROLE_AUTHORIZATION_" + UUID.randomUUID()));
+        testUser.getAuthorizations().add(authorization);
+        userRepository.save(testUser);
+        roleAuthorizationRepository.save(new RoleAuthorization(testUser.getRole(), roleAuthorization));
+
+        ResponseEntity<?> response = userService.getAdminUser(testUser.getUsername());
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        UserResponse userResponse = (UserResponse) response.getBody();
+        Assertions.assertEquals(testUser.getRole(), userResponse.getRole());
+        Assertions.assertTrue(userResponse.isEnabled());
+        Assertions.assertTrue(userResponse.getAuthorizations().contains(authorization.getName()));
+        Assertions.assertTrue(userResponse.getAuthorizations().contains(roleAuthorization.getName()));
+        Assertions.assertTrue(userResponse.getDirectAuthorizations().contains(authorization.getName()));
+        Assertions.assertTrue(userResponse.getRoleAuthorizations().contains(roleAuthorization.getName()));
+    }
+
+    @Test
+    void sendPasswordResetEmailTest() {
+        UserRequest userRequest = new UserRequest();
+        userRequest.setEmail(testUser.getEmail());
+
+        ResponseEntity<?> response =  userService.sendPasswordResetEmail(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("If an account exists, a password reset email has been sent", ((UserResponse) response.getBody()).getMessage());
+    }
+
+    @Test
+    void sendPasswordResetEmailMissingUserTest() {
+        UserRequest userRequest = new UserRequest();
+        userRequest.setEmail("missing@email.com");
+
+        ResponseEntity<?> response = userService.sendPasswordResetEmail(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("If an account exists, a password reset email has been sent", ((UserResponse) response.getBody()).getMessage());
+    }
+
+    @Test
+    void resetPasswordTest() {
+        setupEmailServiceAccount();
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setEmail(testUser.getEmail());
+        userRequest.setNewPassword("newPassword");
+
+        ResponseEntity<?> response =  userService.resetPassword(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("Password reset success", ((UserResponse) response.getBody()).getMessage());
+    }
+
+    @Test
+    void enableUserTest() {
+        User disabledTestUser = new User("disabledTestUser", "disabledTest@test.com", Role.USER, false, new HashSet<>(), passwordEncoder.encode("password"));
+        userRepository.save(disabledTestUser);
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setEmail(disabledTestUser.getEmail());
+
+        ResponseEntity<?> response =  userService.enableUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("User has been enabled", ((UserResponse) response.getBody()).getMessage());
+    }
+
+    @Test
+    void disableUserTest() {
+        //Init the Admin user as the request context holder
+        setupAdminUser();
+
+        User enabledTestUser = new User("enabledTestUser", "enabledTest@test.com", Role.USER, true, new HashSet<>(), passwordEncoder.encode("password"));
+        userRepository.save(enabledTestUser);
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setEmail(enabledTestUser.getEmail());
+
+        ResponseEntity<?> response =  userService.disableUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("User has been disabled", ((UserResponse) response.getBody()).getMessage());
+    }
+
+    @Test
+    void deleteUserTest() {
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response =  userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("User successfully deleted", ((UserResponse) response.getBody()).getMessage());
+        Assertions.assertFalse(userRepository.findByUsername(testUser.getUsername()).isPresent());
+    }
+
+    @Test
+    void deleteUserWithoutFileAndVaultServiceTest() {
+        ReflectionTestUtils.setField(userService, "fileserviceIntegration", false);
+        ReflectionTestUtils.setField(userService, "vaultserviceIntegration", false);
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        verify(fileUtility, never()).deleteUserFromAllCollections(anyString(), anyString());
+        verify(vaultUtility, never()).deleteUserFromAllServices(anyString(), anyString());
+    }
+
+    @Test
+    void sendPasswordResetEmailWithoutEmailServiceTest() {
+        ReflectionTestUtils.setField(userService, "emailserviceIntegration", false);
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setEmail(testUser.getEmail());
+
+        ResponseEntity<?> response = userService.sendPasswordResetEmail(userRequest);
+
+        Assertions.assertEquals(400, response.getStatusCode().value());
+        Assertions.assertEquals("Email service integration is not enabled", ((ErrorResponse) response.getBody()).getErrorMessage());
+    }
+
+    @Test
+    void deleteUserWhenFileServiceFailsTest() {
+        when(fileUtility.deleteUserFromAllCollections(anyString(), anyString()))
+                .thenThrow(new ResourceAccessException("File service unavailable"));
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(503, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(testUser.getUsername()).isPresent());
+    }
+
+    @Test
+    void deleteUserWhenVaultServiceFailsTest() {
+        when(vaultUtility.deleteUserFromAllServices(anyString(), anyString()))
+                .thenThrow(new ResourceAccessException("Vault service unavailable"));
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(503, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(testUser.getUsername()).isPresent());
+    }
+
+    @Test
+    void deleteUserWhenFileServiceReturnsErrorCanRetryTest() {
+        doReturn(ResponseEntity.internalServerError().body("File service error"))
+                .when(fileUtility).deleteUserFromAllCollections(anyString(), anyString());
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(503, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(testUser.getUsername()).isPresent());
+
+        when(fileUtility.deleteUserFromAllCollections(anyString(), anyString()))
+                .thenReturn(ResponseEntity.ok().build());
+
+        response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertFalse(userRepository.findByUsername(testUser.getUsername()).isPresent());
+    }
+
+    @Test
+    void deleteUserWhenVaultServiceReturnsErrorCanRetryTest() {
+        doReturn(ResponseEntity.internalServerError().body("Vault service error"))
+                .when(vaultUtility).deleteUserFromAllServices(anyString(), anyString());
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(503, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(testUser.getUsername()).isPresent());
+
+        when(vaultUtility.deleteUserFromAllServices(anyString(), anyString()))
+                .thenReturn(ResponseEntity.ok().build());
+
+        response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertFalse(userRepository.findByUsername(testUser.getUsername()).isPresent());
+    }
+
+    @Test
+    void deleteLastSuperUserTest() {
+        setupSuperUser();
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testSuper.getUsername());
+        userRequest.setPassword("superPassword");
+
+        ResponseEntity<?> response = userService.deleteUser(userRequest);
+
+        Assertions.assertEquals(400, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(testSuper.getUsername()).isPresent());
+    }
+
+    @Test
+    void updateEmailTest() {
+        String newEmail = "new@test.com";
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setNewEmail(newEmail);
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response =  userService.updateEmail(userRequest);
+
+        User user = userRepository.findByUsername(testUser.getUsername()).get();
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals("Email successfully updated", ((UserResponse) response.getBody()).getMessage());
+        Assertions.assertEquals(newEmail, userRepository.findByUsername(testUser.getUsername()).get().getEmail());
+        Assertions.assertTrue(response.getHeaders().getFirst("Set-Cookie").contains("refresh_token="));
+    }
+
+    @Test
+    void updateUsernameTest() {
+        String newUsername = "newUsername";
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setNewUsername(newUsername);
+        userRequest.setPassword("password");
+
+        ResponseEntity<?> response =  userService.updateUsername(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(newUsername).isPresent());
+        Assertions.assertFalse(userRepository.findByUsername(testUser.getUsername()).isPresent());
+        Assertions.assertTrue(response.getHeaders().getFirst("Set-Cookie").contains("refresh_token="));
+    }
+
+    @Test
+    void updateRoleTest() {
+        Role newRole = Role.ADMIN;
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setNewRole(newRole);
+
+        // Switch to Admin User
+        setupAdminUser();
+
+        ResponseEntity<?> response =  userService.updateRole(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertTrue(userRepository.findByUsername(testUser.getUsername()).isPresent());
+        Assertions.assertEquals(Role.ADMIN, userRepository.findByUsername(testUser.getUsername()).get().getRole());
+    }
+
+    @Test
+    void updateRoleRejectsAdminSelfPromotionToSuperTest() {
+        setupAdminUser();
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testAdmin.getUsername());
+        userRequest.setNewRole(Role.SUPER);
+
+        ResponseEntity<?> response = userService.updateRole(userRequest);
+
+        Assertions.assertEquals(400, response.getStatusCode().value());
+        Assertions.assertEquals(Role.ADMIN, userRepository.findByUsername(testAdmin.getUsername()).get().getRole());
+    }
+
+    @Test
+    void updateRoleRejectsAdminPromotionToSuperTest() {
+        setupAdminUser();
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setNewRole(Role.SUPER);
+
+        ResponseEntity<?> response = userService.updateRole(userRequest);
+
+        Assertions.assertEquals(400, response.getStatusCode().value());
+        Assertions.assertEquals(Role.USER, userRepository.findByUsername(testUser.getUsername()).get().getRole());
+    }
+
+    @Test
+    void updateRoleAllowsSuperPromotionToSuperTest() {
+        setupSuperUser();
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testUser.getUsername());
+        userRequest.setNewRole(Role.SUPER);
+
+        ResponseEntity<?> response = userService.updateRole(userRequest);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals(Role.SUPER, userRepository.findByUsername(testUser.getUsername()).get().getRole());
+    }
+
+    @Test
+    void updateLastSuperUserRoleTest() {
+        setupSuperUser();
+
+        UserRequest userRequest = new UserRequest();
+        userRequest.setUsername(testSuper.getUsername());
+        userRequest.setNewRole(Role.ADMIN);
+
+        ResponseEntity<?> response = userService.updateRole(userRequest);
+
+        Assertions.assertEquals(400, response.getStatusCode().value());
+        Assertions.assertEquals(Role.SUPER, userRepository.findByUsername(testSuper.getUsername()).get().getRole());
+    }
+
+    @Test
+    void getUserIdTest() {
+        ResponseEntity<?> response = userService.getUserId(testUser.getUsername());
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals(testUser.getId(), response.getBody());
+    }
+
+    @Test
+    void getSuperUserIdTest() {
+        setupSuperUser();
+
+        ResponseEntity<?> response = userService.getSuperUserId();
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals(testSuper.getId(), response.getBody());
+    }
+
+    @Test
+    void searchUsersTest() {
+        ResponseEntity<?> response = userService.searchUsers(testUser.getUsername());
+
+        UserResponse userResponse = (UserResponse) response.getBody();
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals(testUser.getId(), userResponse.getUserId());
+        Assertions.assertEquals(testUser.getUsername(), userResponse.getUsername());
+        Assertions.assertEquals(testUser.getEmail(), userResponse.getEmail());
+    }
+
+    @Test
+    void getUserDetailsByIdsTest() {
+        List<UUID> ids = new ArrayList<>();
+
+        ids.add(testUser.getId());
+        ids.add(UUID.randomUUID());
+
+        ResponseEntity<?> response = userService.getUserDetailsByIds(ids);
+        List<UserResponse> userResponseList = (List<UserResponse>) response.getBody();
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+        Assertions.assertEquals(1, userResponseList.size());
+        Assertions.assertEquals(testUser.getUsername(), userResponseList.getFirst().getUsername());
+    }
+}

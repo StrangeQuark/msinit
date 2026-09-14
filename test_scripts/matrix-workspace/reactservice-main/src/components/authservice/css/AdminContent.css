@@ -1,0 +1,330 @@
+.admin-content {
+    width: min(100% - 40px, 1000px);
+    margin: 55px auto;
+    color: var(--app-text);
+}
+
+.admin-header {
+    margin-bottom: 18px;
+}
+
+.admin-header h1, .admin-section h2 {
+    margin: 0;
+}
+
+.admin-header p, .admin-section-header p, .admin-checkboxes-header span {
+    color: var(--app-text-muted);
+    margin: 7px 0 0;
+}
+
+.admin-navigation {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.admin-navigation button, .admin-section button {
+    border: none;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+    color: white;
+    background: #007bff;
+    transition: background-color .2s ease;
+}
+
+.admin-navigation button {
+    background: var(--app-neutral-button);
+    color: var(--app-text);
+}
+
+.admin-navigation button:hover, .admin-navigation button.active, .admin-section button:hover {
+    background: #0056b3;
+    color: white;
+}
+
+.admin-section {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    box-shadow: var(--app-shadow);
+    padding: 28px;
+}
+
+.admin-section-header, .admin-list-item, .admin-modal-header, .admin-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.admin-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.admin-form input, .admin-form textarea, .admin-select-label select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 11px 12px;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 6px;
+    background: var(--app-input-bg);
+    color: var(--app-input-text);
+    font: inherit;
+}
+
+.admin-form button {
+    white-space: nowrap;
+}
+
+.admin-list {
+    display: flex;
+    flex-direction: column;
+    margin-top: 22px;
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.admin-list-item {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--app-border);
+    background: var(--app-surface-elevated);
+}
+
+.admin-list-item:last-child {
+    border-bottom: none;
+}
+
+.admin-list-item > div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.admin-list-item strong {
+    overflow-wrap: anywhere;
+}
+
+.admin-list-item span {
+    color: var(--app-text-muted);
+    font-size: .9rem;
+}
+
+.admin-list-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.admin-danger-button {
+    background: #dc3545 !important;
+}
+
+.admin-danger-button:hover {
+    background: #b71c1c !important;
+}
+
+.admin-message, .admin-empty-state {
+    margin: 16px 0 0;
+    color: var(--app-text-muted);
+    overflow-wrap: anywhere;
+}
+
+.admin-user-details {
+    margin-top: 24px;
+}
+
+.admin-user-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.admin-user-summary > div {
+    padding: 14px;
+    border-radius: 8px;
+    background: var(--app-surface-elevated);
+    border: 1px solid var(--app-border);
+}
+
+.admin-user-summary span, .admin-user-summary strong {
+    display: block;
+}
+
+.admin-user-summary span {
+    color: var(--app-text-muted);
+    font-size: .85rem;
+    margin-bottom: 5px;
+}
+
+.admin-select-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.admin-select-label select {
+    width: auto;
+    min-width: 135px;
+}
+
+.admin-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.admin-checkboxes-header {
+    grid-column: 1 / -1;
+    margin-bottom: 5px;
+}
+
+.admin-checkboxes-header strong, .admin-checkboxes-header span {
+    display: block;
+}
+
+.admin-checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+    background: var(--app-surface-elevated);
+    overflow-wrap: anywhere;
+}
+
+.admin-checkboxes label button {
+    margin-left: auto;
+    padding: 6px 10px;
+}
+
+.admin-checkboxes label > span {
+    margin-left: auto;
+    color: var(--app-text-muted);
+    font-size: .8rem;
+}
+
+.admin-role-authorization {
+    opacity: .75;
+}
+
+.admin-template-form {
+    flex-direction: column;
+    margin-top: 0;
+}
+
+.admin-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    color: var(--app-text);
+    font-weight: 600;
+}
+
+.admin-template-form textarea {
+    min-height: 210px;
+    resize: vertical;
+}
+
+.admin-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--app-overlay);
+}
+
+.admin-modal {
+    width: min(100%, 700px);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    padding: 25px;
+    border-radius: 12px;
+    background: var(--app-surface-elevated);
+    box-shadow: var(--app-shadow);
+}
+
+.admin-token-modal {
+    width: min(100%, 520px);
+}
+
+.admin-token-modal p {
+    margin: 24px 0 7px;
+    color: var(--app-text-muted);
+}
+
+.admin-token-modal code {
+    display: block;
+    padding: 12px;
+    border: 1px solid var(--app-border-strong);
+    border-radius: 6px;
+    background: var(--app-input-bg);
+    color: var(--app-input-text);
+    overflow-wrap: anywhere;
+}
+
+.admin-token-modal .admin-modal-actions {
+    margin-top: 24px;
+}
+
+.admin-close-button {
+    padding: 3px 10px !important;
+    font-size: 1.5rem;
+    line-height: 1;
+    background: transparent !important;
+    color: var(--app-text) !important;
+}
+
+.admin-secondary-button {
+    background: var(--app-neutral-button) !important;
+    color: var(--app-text) !important;
+}
+
+@media (max-width: 650px) {
+    .admin-content {
+        width: min(100% - 24px, 1000px);
+        margin: 28px auto;
+    }
+
+    .admin-section {
+        padding: 20px;
+    }
+
+    .admin-section-header, .admin-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .admin-form button {
+        width: 100%;
+    }
+
+    .admin-user-summary, .admin-checkboxes {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-list-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .admin-list-actions {
+        width: 100%;
+    }
+
+    .admin-list-actions button {
+        flex: 1;
+    }
+}

@@ -1,4 +1,3 @@
-# Integration file: GHA
 name: MSINIT Deploy
 
 on:

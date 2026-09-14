@@ -1,0 +1,81 @@
+package com.example.authservice.servicetests;
+
+import com.example.authservice.authorization.AuthorizationType;
+import com.example.authservice.config.JwtService;
+import com.example.authservice.serviceaccount.ServiceAccount;
+import com.example.authservice.serviceaccount.ServiceAccountInitializer;
+import com.example.authservice.serviceaccount.ServiceAccountRepository;
+import com.example.authservice.serviceaccount.ServiceAccountRequest;
+import com.example.authservice.serviceaccount.ServiceAccountService;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.UUID;
+
+public class ServiceAccountServiceTest extends BaseServiceTest {
+
+    @Autowired
+    ServiceAccountService serviceAccountService;
+    @Autowired
+    ServiceAccountRepository serviceAccountRepository;
+    @Autowired
+    JwtService jwtService;
+    @Autowired
+    ServiceAccountInitializer serviceAccountInitializer;
+
+    private ServiceAccount testServiceAccount;
+    private String accessToken;
+
+    @BeforeEach
+    void setup() {
+        testServiceAccount = new ServiceAccount();
+        testServiceAccount.setClientId("testClientId" + UUID.randomUUID());
+        testServiceAccount.setClientPassword(passwordEncoder.encode("testClientPassword"));
+        serviceAccountRepository.save(testServiceAccount);
+
+        accessToken = jwtService.generateServiceAccountToken(testServiceAccount, false);
+
+        //Set the accessToken to the Authorization header in the requestContextHolder
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + accessToken);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    }
+
+    @Test
+    void authenticateTest() {
+        ServiceAccountRequest request = new ServiceAccountRequest(testServiceAccount.getClientId(), "testClientPassword");
+
+        ResponseEntity<?> response =  serviceAccountService.authenticate(request);
+
+        Assertions.assertEquals(200, response.getStatusCode().value());
+    }
+
+    @Test
+    void serviceAccountAuthoritiesTest() {
+        Assertions.assertTrue(testServiceAccount.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("SERVICE_ACCOUNT")));
+
+        Assertions.assertTrue(testServiceAccount.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(testServiceAccount.getClientId().toUpperCase() + "_SERVICE")));
+    }
+
+    @Test
+    void initialAuthorizationsTest() {
+        serviceAccountInitializer.run(new DefaultApplicationArguments());
+        ServiceAccount authServiceAccount = serviceAccountRepository.findByClientId("auth").get();
+
+        Assertions.assertTrue(authServiceAccount.getAuthorizations().stream()
+                .anyMatch(authorization -> authorization.getName().equals(AuthorizationType.EMAIL_API_ACCESS.name())));
+        Assertions.assertTrue(authServiceAccount.getAuthorizations().stream()
+                .anyMatch(authorization -> authorization.getName().equals(AuthorizationType.VAULT_API_ACCESS.name())));
+        Assertions.assertTrue(authServiceAccount.getAuthorizations().stream()
+                .anyMatch(authorization -> authorization.getName().equals(AuthorizationType.TELEMETRY_API_ACCESS.name())));
+    }
+}

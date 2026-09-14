@@ -1,0 +1,113 @@
+// Integration file: Telemetry
+
+package com.example.vaultservice.utility;
+
+import jakarta.annotation.PreDestroy;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.Executor;
+
+@Service
+public class TelemetryUtility {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryUtility.class);
+
+    private KafkaProducer<String, String> producer;
+    private String cachedServiceToken = null; // Integration line: Auth
+    // Integration function start: Auth
+    @Autowired
+    private AuthUtility authUtility;
+    @Autowired
+    private JwtUtility jwtUtility; // Integration function end: Auth
+
+    @Async("telemetryExecutor")
+    public void sendTelemetryEvent(String eventType, Map<String, Object> metadata) {
+        try {
+            LOGGER.debug("Attempting to post message to vault telemetry Kafka topic");
+            // Integration function start: Auth
+            if (!jwtUtility.isTokenValid(cachedServiceToken)) {
+                cachedServiceToken = authUtility.authenticateServiceAccount();
+            }
+            String accessToken = "Bearer " + cachedServiceToken;
+            // Integration function end: Auth
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("serviceName", "vaultservice");
+            requestBody.put("eventType", eventType);
+            requestBody.put("timestamp", LocalDateTime.now());
+            requestBody.put("metadata", new JSONObject(new HashMap<>(metadata)));
+
+            LOGGER.debug("Message created, attempting to post to vault telemetry Kafka topic");
+            ProducerRecord<String, String> record = new ProducerRecord<String, String>(
+                    "vault-telemetry-events",
+                    null,
+                    null,
+                    requestBody.toString()
+                    ,List.of(new RecordHeader("Authorization", accessToken.getBytes())) // Integration line: Auth
+            );
+
+            getProducer().send(record, (recordMetadata, exception) -> {
+                if(exception != null) {
+                    LOGGER.error("Failed to send telemetry event: " + exception.getMessage());
+                    LOGGER.debug("Stack trace: ", exception);
+                }
+            });
+            LOGGER.debug("Telemetry event successfully sent");
+        } catch (Exception ex) {
+            LOGGER.error("Failed to react Telemetry Kafka service: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+        }
+    }
+
+    private KafkaProducer<String, String> getProducer() {
+        if (producer == null) {
+            Properties props = new Properties();
+            props.put("bootstrap.servers", "telemetry-kafka:9093");
+            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("max.block.ms", "5000");
+            props.put("request.timeout.ms", "5000");
+            props.put("delivery.timeout.ms", "10000");
+            producer = new KafkaProducer<>(props);
+        }
+        return producer;
+    }
+
+    @PreDestroy
+    public void closeProducer() {
+        if(producer != null)
+            producer.close(Duration.ofSeconds(5));
+    }
+
+    @Configuration
+    @EnableAsync
+    static class TelemetryAsyncConfig {
+        @Bean(name = "telemetryExecutor")
+        public Executor telemetryExecutor() {
+            ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+            executor.setCorePoolSize(1);
+            executor.setMaxPoolSize(1);
+            executor.setQueueCapacity(50);
+            executor.setThreadNamePrefix("Telemetry-");
+            executor.setRejectedExecutionHandler((runnable, threadPoolExecutor) ->
+                    LOGGER.warn("Telemetry event dropped because telemetry queue is full")
+            );
+            executor.initialize();
+            return executor;
+        }
+    }
+}

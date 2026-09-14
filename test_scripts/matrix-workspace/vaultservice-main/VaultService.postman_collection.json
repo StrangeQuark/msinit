@@ -1,0 +1,1126 @@
+{
+	"info": {
+		"_postman_id": "83c096f6-e9be-42dc-bb40-e776df14f3c3",
+		"name": "VaultService",
+		"description": "Postman collection for testing the Vault microservice",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29355577"
+	},
+	"item": [
+		{
+			"name": "Healthcheck",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/create-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"create-service"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Environment",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/create-environment",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"create-environment"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-service"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Environments by Service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-environments-by-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-environments-by-service"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Environment",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-environment",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-environment"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Variables by Service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-variables-by-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-variables-by-service"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Variables by Environment",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-variables-by-environment",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-variables-by-environment"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Variable by Name",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-variable-by-name",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-variable-by-name"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\",\n    \"variableName\": \"abc2\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Variable",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\",\n    \"variable\": {\n        \"key\": \"abc2\",\n        \"value\": \"value\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/add-variable",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"add-variable"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update variable",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\",\n    \"variable\": {\n        \"key\": \"abc2\",\n        \"value\": \"value\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/update-variable",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"update-variable"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update variables",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\",\n    \"variables\": [\n        {\n            \"key\": \"abc2\",\n            \"value\": \"value\"\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/update-variables",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"update-variables"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Env File",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "serviceName",
+							"value": "testService",
+							"type": "text"
+						},
+						{
+							"key": "environmentName",
+							"value": "e3",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/add-env-file",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"add-env-file"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Download env file",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/download-env-file",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"download-env-file"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Variable",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/delete-variable",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"delete-variable"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\",\n    \"variableName\": \"abc2\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Environment",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/delete-environment",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"delete-environment"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"environmentName\": \"e3\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/delete-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"delete-service"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Services",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-all-services",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-all-services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Users by Service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-users-by-service/testService",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-users-by-service",
+						"testService"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Roles",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-all-roles",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-all-roles"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Current User Role",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/get-current-user-role/testService",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"get-current-user-role",
+						"testService"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update User Role",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"username\": \"testUser1\",\n    \"role\": \"MAINTAINER\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/update-user-role",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"update-user-role"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add user to service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"username\": \"testUser1\",\n    \"role\": \"MAINTAINER\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/add-user-to-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"add-user-to-service"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete user from service",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testService\",\n    \"username\": \"testUser1\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/delete-user-from-service",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"delete-user-from-service"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete User from all Services",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"testUser1\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/delete-user-from-all-services",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"delete-user-from-all-services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Bootstrap env file",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-VAULT-BOOTSTRAP-TOKEN",
+						"value": "{{BOOTSTRAP_TOKEN}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/home/strangequark/Music/t.env"
+						},
+						{
+							"key": "serviceName",
+							"value": "testBootstrapService",
+							"type": "text"
+						},
+						{
+							"key": "environmentName",
+							"value": "testBootstrapEnv",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:6020/api/vault/bootstrap/add-env",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"bootstrap",
+						"add-env"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Bootstrap user",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-VAULT-BOOTSTRAP-TOKEN",
+						"value": "{{BOOTSTRAP_TOKEN}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/bootstrap/bootstrap-user",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"bootstrap",
+						"bootstrap-user"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testBootstrapService\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "CICD get",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "X-CICD-TOKEN",
+						"value": "12C951166DD986226A26E65DEC4CC4C1",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:6020/api/vault/cicd",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6020",
+					"path": [
+						"api",
+						"vault",
+						"cicd"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"serviceName\": \"testBootstrapService\",\n    \"environmentName\": \"testBootstrapEnv\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		}
+	]
+}
