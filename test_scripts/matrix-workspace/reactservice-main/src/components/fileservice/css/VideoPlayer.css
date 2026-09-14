@@ -1,0 +1,20 @@
+
+
+.video-close-btn {
+    position: absolute;
+    width: 1px !important;
+    top: -50px;
+    right: -80px;
+    font-size: 24px !important;
+    background-color: black;
+    padding: 0 !important;
+    border: none;
+    color: white;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.video-player {
+    width: 100%;
+    border-radius: 10px;
+}

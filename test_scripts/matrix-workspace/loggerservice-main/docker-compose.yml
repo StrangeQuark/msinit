@@ -1,0 +1,92 @@
+services:
+  logger-service:
+    build: .
+    container_name: logger-service
+    networks:
+      - shared-network
+      - logger-network
+    user: root
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    environment:
+      - SERVER_PORT=${SERVER_PORT}
+      - OPENSEARCH_HOST=${OPENSEARCH_HOST}
+      - OPENSEARCH_PORT=${OPENSEARCH_PORT}
+      - OPENSEARCH_USERNAME=${OPENSEARCH_USERNAME}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_PASSWORD}
+      - OPENSEARCH_SSL_VERIFICATIONMODE=${OPENSEARCH_SSL_VERIFICATIONMODE}
+      - DASHBOARDS_HOST=${DASHBOARDS_HOST}
+      - DASHBOARDS_PORT=${DASHBOARDS_PORT}
+      - SERVICE_HTTP_CONNECT_TIMEOUT=${SERVICE_HTTP_CONNECT_TIMEOUT}
+      - SERVICE_HTTP_READ_TIMEOUT=${SERVICE_HTTP_READ_TIMEOUT}
+      - LOG_SCAN_INTERVAL_MS=${LOG_SCAN_INTERVAL_MS}
+      - LOG_TAILER_THREAD_COUNT=${LOG_TAILER_THREAD_COUNT}
+    depends_on:
+      dashboards:
+        condition: service_healthy
+    ports:
+      - "6030:6030"
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:6030/api/logger/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.6@sha256:8690b204fe914c60ca76d451ac73bc0481e034d32d3779944c8caca56a2b003f
+    container_name: opensearch
+    networks:
+      - logger-network
+    environment:
+      - discovery.type=${DISCOVERY_TYPE}
+      - OPENSEARCH_JAVA_OPTS=${OPENSEARCH_JAVA_OPTS}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail --insecure -u admin:${OPENSEARCH_PASSWORD} https://localhost:9200/_cluster/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  dashboards:
+    image: opensearchproject/opensearch-dashboards:2.19.6@sha256:7aaefffac1660cab61ecf1e52fdcde6c156587a020dfa9246d529ea5e784dcee
+    container_name: dashboards
+    networks:
+      - shared-network
+      - logger-network
+    environment:
+      - OPENSEARCH_HOSTS=${OPENSEARCH_HOSTS}
+      - OPENSEARCH_SSL_VERIFICATIONMODE=${OPENSEARCH_SSL_VERIFICATIONMODE}
+      - OPENSEARCH_USERNAME=${OPENSEARCH_DASHBOARDS_USERNAME}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_DASHBOARDS_PASSWORD}
+      - OPENSEARCH_DASHBOARDS_I18N_LOCALE=${OPENSEARCH_DASHBOARDS_I18N_LOCALE}
+    ports:
+      - "127.0.0.1:5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl --fail --silent -u \"$$OPENSEARCH_USERNAME:$$OPENSEARCH_PASSWORD\" http://localhost:5601/api/status | grep -q '\"state\":\"green\"'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+
+networks:
+  shared-network:
+    external: true
+  logger-network:
+    internal: true

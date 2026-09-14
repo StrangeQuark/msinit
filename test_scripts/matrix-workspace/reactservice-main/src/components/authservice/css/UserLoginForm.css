@@ -1,0 +1,14 @@
+
+
+.auth-help-div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: 4vh;
+  font-size: large;
+}
+
+.auth-help-div:has(:only-child) {
+  justify-content: center;
+}

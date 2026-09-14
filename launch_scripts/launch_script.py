@@ -3,13 +3,11 @@ import os
 import platform
 
 networks = [
-    'shared-network',
-    'authdb-network', # Integration line: Auth
-    'emaildb-network', # Integration line: Email
-    'filedb-network', # Integration line: File
-    'vaultdb-network' # Integration line: Vault
-    'telemetrydb-network' # Integration line: Telemetry
+    'shared-network'
 ]
+
+if any(folder.startswith('jenkinsservice') for folder in os.listdir(os.getcwd())):
+    networks.append('jenkins-network')
 
 networkString = subprocess.run(['docker', 'network', 'ls'], capture_output=True, text=True).stdout.strip("\n")
 

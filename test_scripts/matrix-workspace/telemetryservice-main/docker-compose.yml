@@ -1,0 +1,119 @@
+services:
+  telemetry-service:
+    build: .
+    networks:
+      - shared-network
+      - telemetrydb-network
+    ports:
+      - "6050:6050"
+    container_name: telemetry-service
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+    labels:
+      com.msinit.log: "true"
+      com.msinit.service-name: "telemetryservice"
+    depends_on:
+      - telemetry-db
+      - telemetry-kafka
+    environment:
+      - SPRING_APPLICATION_NAME=${SPRING_APPLICATION_NAME}
+      - SERVER_PORT=${SERVER_PORT}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - LOGGING_LEVEL=${LOGGING_LEVEL}
+      - ENCRYPT_DATA_AT_REST=${ENCRYPT_DATA_AT_REST}
+      - SPRING_DATA_MONGODB_HOST=${SPRING_DATA_MONGODB_HOST}
+      - SPRING_DATA_MONGODB_PORT=${SPRING_DATA_MONGODB_PORT}
+      - SPRING_DATA_MONGODB_DATABASE=${SPRING_DATA_MONGODB_DATABASE}
+      - SPRING_DATA_MONGODB_URI=mongodb://${MONGO_APP_USERNAME}:${MONGO_APP_PASSWORD}@telemetry-db:27017/${SPRING_DATA_MONGODB_DATABASE}?authSource=${SPRING_DATA_MONGODB_DATABASE}
+      - TELEMETRY_RETENTION_DAYS=${TELEMETRY_RETENTION_DAYS}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+      - SPRING_KAFKA_CONSUMER_GROUP_ID=${SPRING_KAFKA_CONSUMER_GROUP_ID}
+      - SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET=${SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET}
+      - SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER=${SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER}
+      - SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER=${SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER}
+      - SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_DESERIALIZER_VALUE_DELEGATE_CLASS=${SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_DESERIALIZER_VALUE_DELEGATE_CLASS}
+      - SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TRUSTED_PACKAGES=${SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_TRUSTED_PACKAGES}
+      - SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_VALUE_DEFAULT_TYPE=${SPRING_KAFKA_CONSUMER_PROPERTIES_SPRING_JSON_VALUE_DEFAULT_TYPE}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - AUTHSERVICE_INTEGRATION=${AUTHSERVICE_INTEGRATION}
+      - EMAILSERVICE_INTEGRATION=${EMAILSERVICE_INTEGRATION}
+      - FILESERVICE_INTEGRATION=${FILESERVICE_INTEGRATION}
+      - VAULTSERVICE_INTEGRATION=${VAULTSERVICE_INTEGRATION}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - JWT_ISSUER=${JWT_ISSUER}
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:6050/api/telemetry/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  telemetry-db:
+    image: 'mongo:6.0@sha256:8b6d8f5bbedb25cb73517b65cf99f13aeb75ad5b157a56c479287a840bbad3ac'
+    container_name: telemetry-db
+    restart: unless-stopped
+    volumes:
+      - telemetry-db-volume:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${SPRING_DATA_MONGODB_DATABASE}
+      - MONGO_APP_USERNAME=${MONGO_APP_USERNAME}
+      - MONGO_APP_PASSWORD=${MONGO_APP_PASSWORD}
+    networks:
+      - telemetrydb-network
+
+  mongo-express:
+    image: mongo-express@sha256:1b23d7976f0210dbec74045c209e52fbb26d29b2e873d6c6fa3d3f0ae32c2a64
+    container_name: mongo-express
+    restart: always
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_URL=mongodb://${MONGO_APP_USERNAME}:${MONGO_APP_PASSWORD}@telemetry-db:27017/${SPRING_DATA_MONGODB_DATABASE}?authSource=${SPRING_DATA_MONGODB_DATABASE}
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=false
+      - ME_CONFIG_BASICAUTH_ENABLED=true
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGO_EXPRESS_USERNAME}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGO_EXPRESS_PASSWORD}
+    networks:
+      - telemetrydb-network
+      - shared-network
+
+
+  telemetry-zookeeper:
+    image: 'confluentinc/cp-zookeeper:7.6.0@sha256:9babd1c0beaf93189982bdbb9fe4bf194a2730298b640c057817746c19838866'
+    container_name: telemetry-zookeeper
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=${ZOOKEEPER_CLIENT_PORT}
+      - ZOOKEEPER_TICK_TIME=${ZOOKEEPER_TICK_TIME}
+    networks:
+      - shared-network
+
+  telemetry-kafka:
+    image: 'confluentinc/cp-kafka:7.6.0@sha256:24cdd3a7fa89d2bed150560ebea81ff1943badfa61e51d66bb541a6b0d7fb047'
+    container_name: telemetry-kafka
+    depends_on:
+      - telemetry-zookeeper
+    networks:
+      - shared-network
+    environment:
+      - KAFKA_BROKER_ID=${KAFKA_BROKER_ID}
+      - KAFKA_ZOOKEEPER_CONNECT=${KAFKA_ZOOKEEPER_CONNECT}
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      - KAFKA_LISTENERS=${KAFKA_LISTENERS}
+      - KAFKA_ADVERTISED_LISTENERS=${KAFKA_ADVERTISED_LISTENERS}
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+
+networks:
+  shared-network:
+    external: true
+  telemetrydb-network:
+    internal: true
+
+volumes:
+  telemetry-db-volume:

@@ -1,0 +1,134 @@
+package com.example.authservice.utility;
+
+import jakarta.annotation.PreDestroy;
+import com.example.authservice.config.JwtService;
+import io.jsonwebtoken.ExpiredJwtException;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
+import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.Executor;
+
+@Service
+public class TelemetryUtility {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryUtility.class);
+
+    /**
+     * {@link AuthUtility} for authenticating the service account
+     */
+    @Autowired
+    private AuthUtility authUtility;
+
+    @Autowired
+    private JwtService jwtService;
+
+    private KafkaProducer<String, String> producer;
+    private String cachedServiceToken = null;
+    @Value("${telemetryservice.integration}")
+    private boolean telemetryserviceIntegration;
+
+    @Async("telemetryExecutor")
+    public void sendTelemetryEvent(String eventType, Map<String, Object> metadata) {
+        if(!telemetryserviceIntegration)
+            return;
+
+        try {
+            LOGGER.debug("Attempting to post message to auth telemetry Kafka topic");
+
+            String accessToken = "Bearer " + ensureValidServiceToken();
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("serviceName", "authservice");
+            requestBody.put("eventType", eventType);
+            requestBody.put("timestamp", LocalDateTime.now());
+            requestBody.put("metadata", new JSONObject(new HashMap<>(metadata)));
+
+            LOGGER.debug("Message created, attempting to post to auth telemetry Kafka topic");
+            ProducerRecord<String, String> record = new ProducerRecord<String, String>(
+                    "auth-telemetry-events",
+                    null,
+                    null,
+                    requestBody.toString()
+                    ,List.of(new RecordHeader("Authorization", accessToken.getBytes()))
+            );
+
+            getProducer().send(record, (recordMetadata, exception) -> {
+                if(exception != null) {
+                    LOGGER.error("Failed to send telemetry event: " + exception.getMessage());
+                    LOGGER.debug("Stack trace: ", exception);
+                }
+            });
+            LOGGER.debug("Telemetry event successfully sent");
+        } catch (Exception ex) {
+            LOGGER.error("Unable to reach telemetry Kafka service: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+        }
+    }
+
+    private KafkaProducer<String, String> getProducer() {
+        if (producer == null) {
+            Properties props = new Properties();
+            props.put("bootstrap.servers", "telemetry-kafka:9093");
+            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("max.block.ms", "5000");
+            props.put("request.timeout.ms", "5000");
+            props.put("delivery.timeout.ms", "10000");
+            producer = new KafkaProducer<>(props);
+        }
+        return producer;
+    }
+
+    @PreDestroy
+    public void closeProducer() {
+        if(producer != null)
+            producer.close(Duration.ofSeconds(5));
+    }
+
+    private String ensureValidServiceToken() {
+        try {
+            if (cachedServiceToken == null || jwtService.isTokenExpired(cachedServiceToken, false)) {
+                cachedServiceToken = authUtility.authenticateServiceAccount();
+            }
+        } catch (ExpiredJwtException ex) {
+            cachedServiceToken = authUtility.authenticateServiceAccount();
+        } catch (Exception ex) {
+            LOGGER.debug("Service token invalid, regenerating: " + ex.getMessage());
+            cachedServiceToken = authUtility.authenticateServiceAccount();
+        }
+        return cachedServiceToken;
+    }
+
+    /**
+     * Async configuration and thread pool for telemetry
+     */
+    @Configuration
+    static class TelemetryAsyncConfig {
+        @Bean(name = "telemetryExecutor")
+        public Executor telemetryExecutor() {
+            ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+            executor.setCorePoolSize(1);
+            executor.setMaxPoolSize(1);
+            executor.setQueueCapacity(50);
+            executor.setThreadNamePrefix("Telemetry-");
+            executor.setRejectedExecutionHandler((runnable, threadPoolExecutor) ->
+                    LOGGER.warn("Telemetry event dropped because telemetry queue is full")
+            );
+            executor.initialize();
+            return executor;
+        }
+    }
+}

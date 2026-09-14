@@ -1,0 +1,340 @@
+{
+	"info": {
+		"_postman_id": "e5ced3ca-1c90-4a8b-8b84-9ebee7a9725a",
+		"name": "EmailService",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29355577"
+	},
+	"item": [
+		{
+			"name": "Healthcheck",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"token\": \"fc18594a-a9be-47b9-9754-eb048a32c48e\",\n  \"newPassword\": \"newPassword123\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Send Email",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"recipient\": \"test@test.com\",\r\n    \"sender\": \"test@emailservice.com\",\r\n    \"body\": \"Test email body\",\r\n    \"subject\": \"Test email subject\",\r\n    \"includeToken\": true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/send-email",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"send-email"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Template Email",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:6005/api/email/get-template-email",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"get-template-email"
+					]
+				},
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"templateName\": \"USER_REGISTER\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Template Emails",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [{ "key": "token", "value": "{{ACCESS_TOKEN}}", "type": "string" }]
+				},
+				"method": "GET",
+				"header": [],
+				"url": "http://localhost:6005/api/email/get-all-template-emails"
+			},
+			"response": []
+		},
+		{
+			"name": "Send Template Email",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"recipient\": \"test@test.com\",\r\n    \"sender\": \"test@emailservice.com\",\r\n    \"includeToken\": true,\r\n    \"templateName\": \"USER_REGISTER\",\r\n    \"templateVariables\": {\r\n        \"link\": \"http://localhost:6080\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/send-template-email",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"send-template-email"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Template",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"templateName\": \"TEST_TEMPLATE\",\r\n    \"subject\": \"This is a test template email\",\r\n    \"body\": \"Test body with a confirmation token link: {{link}}?token=[[confirmationToken]]\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/create-template-email",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"create-template-email"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirm token",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/confirm-token?token=03fe7c1a-3ae2-4bcc-b3bc-36f33e4e16ba",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"confirm-token"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "03fe7c1a-3ae2-4bcc-b3bc-36f33e4e16ba"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Enable user",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/enable-user?token=4678e980-5202-4750-8163-0abe940d2049",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"enable-user"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "4678e980-5202-4750-8163-0abe940d2049"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Reset user password",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{ACCESS_TOKEN}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:6005/api/email/reset-user-password",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "6005",
+					"path": [
+						"api",
+						"email",
+						"reset-user-password"
+					],
+					"query": []
+				}
+			},
+			"response": []
+		}
+	]
+}

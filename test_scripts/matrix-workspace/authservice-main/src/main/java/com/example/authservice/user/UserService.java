@@ -1,0 +1,797 @@
+package com.example.authservice.user;
+
+import com.example.authservice.authorization.Authorization;
+import com.example.authservice.authorization.AuthorizationRepository;
+import com.example.authservice.authorization.RoleAuthorization;
+import com.example.authservice.authorization.RoleAuthorizationRepository;
+import com.example.authservice.config.JwtService;
+import com.example.authservice.error.ErrorResponse;
+import com.example.authservice.serviceaccount.ServiceAccount;
+import com.example.authservice.serviceaccount.ServiceAccountRepository;
+import com.example.authservice.utility.EmailType;
+import com.example.authservice.utility.EmailUtility;
+import com.example.authservice.utility.FileUtility;
+import com.example.authservice.utility.VaultUtility;
+import com.example.authservice.utility.TelemetryUtility;
+import jakarta.servlet.http.Cookie;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.List;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * {@link Service} for manipulating {@link User} objects
+ */
+@Service
+public class UserService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserService.class);
+
+    /**
+     * {@link UserRepository} for fetching {@link User} from the database
+     */
+    private final UserRepository userRepository;
+    private final AuthorizationRepository authorizationRepository;
+    private final RoleAuthorizationRepository roleAuthorizationRepository;
+    /**
+     * {@link ServiceAccountRepository} for fetching {@link ServiceAccount} from the database
+     */
+    @Autowired
+    private ServiceAccountRepository serviceAccountRepository;
+
+    /**
+     * {@link JwtService} for extracting the username from the request token
+     */
+    private final JwtService jwtService;
+
+    /**
+     * {@link PasswordEncoder} for encoding our password when updating
+     */
+    private final PasswordEncoder passwordEncoder;
+
+    /**
+     * {@link AuthenticationManager} for authenticating the user
+     */
+    private final AuthenticationManager authenticationManager;
+
+    /**
+     * {@link FileUtility} for sending requests to file service
+     */
+    @Autowired
+    FileUtility fileUtility;
+    /**
+     * {@link VaultUtility} for sending requests to vault service
+     */
+    @Autowired
+    VaultUtility vaultUtility;
+    /**
+     * {@link EmailUtility} for sending requests to email service
+     */
+    @Autowired
+    EmailUtility emailUtility;
+    /**
+     * {@link TelemetryUtility} for sending telemetry events to the Kafka
+     */
+    @Autowired
+    TelemetryUtility telemetryUtility;
+    @Value("${emailservice.integration}")
+    private boolean emailserviceIntegration;
+    @Value("${fileservice.integration}")
+    private boolean fileserviceIntegration;
+    @Value("${vaultservice.integration}")
+    private boolean vaultserviceIntegration;
+    /**
+     * Constructs a new {@code UserService} with the given dependencies.
+     *
+     * @param userRepository {@link UserRepository} for performing transactions on the User database
+     * @param passwordEncoder {@link PasswordEncoder} for encoding/decoding passwords in the User database
+     * @param jwtService {@link JwtService} for generating JWT tokens
+     * @param authenticationManager {@link AuthenticationManager} for authenticating JWT tokens
+     */
+    public UserService(UserRepository userRepository, AuthorizationRepository authorizationRepository,
+                       RoleAuthorizationRepository roleAuthorizationRepository, JwtService jwtService,
+                       PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager){
+        this.userRepository = userRepository;
+        this.authorizationRepository = authorizationRepository;
+        this.roleAuthorizationRepository = roleAuthorizationRepository;
+        this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+    }
+
+    /**
+     * Business logic updating user's password
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> updatePassword(UserRequest userRequest) {
+        LOGGER.info("Attempting to update password");
+
+        try {
+            String authToken = getAuthToken();
+
+            //Authenticate the user, throw an AuthenticationException if the username and password combination are incorrect
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                            jwtService.extractUsername(authToken, false),
+                            userRequest.getPassword()
+                    )
+            );
+
+            //Get the user, throw an exception if the username is not found
+            User user = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+            //Set the user's new password and save
+            user.setPassword(passwordEncoder.encode(userRequest.getNewPassword()));
+
+            String refreshToken = jwtService.generateToken(user, true);
+
+            user.setRefreshToken(refreshToken);
+            userRepository.save(user);
+            // Send a telemetry event for user password update
+            telemetryUtility.sendTelemetryEvent("user-password-update", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("Password successfully updated");
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, jwtService.buildTokenCookie("refresh_token", refreshToken, true).toString())
+                    .body(new UserResponse("Password successfully updated"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to update user password: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic adding authorities to a user
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> addAuthorizationsToUser(UserRequest userRequest) {
+        LOGGER.info("Attempting to add authorizations to user");
+
+        try {
+            String authToken = getAuthToken();
+
+            //Get the user, throw an exception if the username is not found
+            User requestingUser = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("Requesting user not found"));
+
+            //Get the target user, throw an exception if the username or email are not found
+            User user = userRepository.findByUsername(userRequest.getUsername())
+                    .or(() -> userRepository.findByEmail(userRequest.getEmail()))
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            if(requestingUser.getRole() != Role.SUPER)
+                throw new RuntimeException("Only SUPER users can add authorizations");
+
+            if(userRequest.getAuthorizations() == null || userRequest.getAuthorizations().isEmpty())
+                throw new RuntimeException("Authorizations are required");
+
+            Set<Authorization> authorizations = new HashSet<>();
+
+            for(String authorizationName : userRequest.getAuthorizations()) {
+                Authorization authorization = authorizationRepository.findByName(authorizationName)
+                        .orElseThrow(() -> new RuntimeException("Authorization was not found"));
+
+                authorizations.add(authorization);
+            }
+
+            //Append the authorizations and save
+            user.appendAuthorizations(authorizations);
+            userRepository.save(user);
+            // Send a telemetry event for adding authorizations to user
+            telemetryUtility.sendTelemetryEvent("user-add-authorizations", Map.of(
+                    "userId", user.getId(),
+                    "authorizations", userRequest.getAuthorizations(),
+                    "authorizedBy", requestingUser.getId()
+            ));
+
+            //Return a 200 response with a success message
+            LOGGER.info("Authorization successfully added");
+            return ResponseEntity.ok(new UserResponse("Authorizations successfully added"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to add authorizations to user: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for removing authorities from a user
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> removeAuthorizations(UserRequest userRequest) {
+        LOGGER.info("Attempting to remove authorizations from user");
+
+        try {
+            String authToken = getAuthToken();
+
+            //Get the user, throw an exception if the username is not found
+            User requestingUser = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("Requesting user not found"));
+
+            //Get the target user, throw an exception if the username or email are not found
+            User user = userRepository.findByUsername(userRequest.getUsername())
+                    .or(() -> userRepository.findByEmail(userRequest.getEmail()))
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            if(requestingUser.getRole() != Role.SUPER)
+                throw new RuntimeException("Only SUPER users can remove authorizations");
+
+            if(userRequest.getAuthorizations() == null || userRequest.getAuthorizations().isEmpty())
+                throw new RuntimeException("Authorizations are required");
+
+            Set<Authorization> authorizations = new HashSet<>();
+
+            for(String authorizationName : userRequest.getAuthorizations()) {
+                Authorization authorization = authorizationRepository.findByName(authorizationName)
+                        .orElseThrow(() -> new RuntimeException("Authorization was not found"));
+
+                authorizations.add(authorization);
+            }
+
+            //Remove the authorizations and save
+            user.removeAuthorizations(authorizations);
+            userRepository.save(user);
+            // Send a telemetry event for removing authorizations from user
+            telemetryUtility.sendTelemetryEvent("user-remove-authorizations", Map.of(
+                    "userId", user.getId(),
+                    "authorizations", userRequest.getAuthorizations(),
+                    "authorizedBy", requestingUser.getId()
+            ));
+
+            //Return a 200 response with a success message
+            LOGGER.info("Authorizations successfully removed");
+            return ResponseEntity.ok(new UserResponse("Authorizations successfully removed"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to remove authorizations from user: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for initiating the password reset email process
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> sendPasswordResetEmail(UserRequest userRequest) {
+        LOGGER.info("Attempting to verify user and send password reset email");
+
+        if(!emailserviceIntegration)
+            return ResponseEntity.status(400).body(new ErrorResponse("Email service integration is not enabled"));
+
+        try {
+            //Get the target user, throw an exception if the username or email are not found
+            User user = userRepository.findByUsername(userRequest.getUsername())
+                    .or(() -> userRepository.findByEmail(userRequest.getEmail()))
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            try {
+                emailUtility.sendAsyncEmail(user.getEmail(), EmailType.PASSWORD_RESET);
+            } catch (Exception ex) {
+                LOGGER.error("Unable to send password reset email to kafka: " + ex.getMessage());
+                LOGGER.debug("Stack trace: ", ex);
+                return ResponseEntity.ok(new UserResponse("If an account exists, a password reset email has been sent"));
+            }
+            // Send a telemetry event for sending password reset email
+            telemetryUtility.sendTelemetryEvent("user-password-reset-email", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("Password reset email has been sent");
+            return ResponseEntity.ok(new UserResponse("If an account exists, a password reset email has been sent"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to send password reset email: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.ok(new UserResponse("If an account exists, a password reset email has been sent"));
+        }
+    }
+
+    /**
+     * Business logic for resetting a user's password
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> resetPassword(UserRequest userRequest) {
+        LOGGER.info("Attempting to reset user's password");
+
+        if(!emailserviceIntegration)
+            return ResponseEntity.status(400).body(new ErrorResponse("Email service integration is not enabled"));
+
+        try {
+            String authToken = getAuthToken();
+
+            //Get the user, throw an exception if the username is not found
+            ServiceAccount requestingServiceAccount = serviceAccountRepository.findByClientId(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("Requesting service account not found"));
+
+            if(!requestingServiceAccount.getClientId().equals("email"))
+                throw new RuntimeException("Only the EMAIL service account can send reset password requests");
+
+            //Get the target user, throw an exception if the email is not found
+            User user = userRepository.findByEmail(userRequest.getEmail())
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            user.setPassword(passwordEncoder.encode(userRequest.getNewPassword()));
+            userRepository.save(user);
+            // Send a telemetry event for user password reset
+            telemetryUtility.sendTelemetryEvent("user-password-reset", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("Password reset success");
+            return ResponseEntity.ok(new UserResponse("Password reset success"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to reset user password: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+    /**
+     * Business logic for enabling a user
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> enableUser(UserRequest userRequest) {
+        LOGGER.info("Attempting to enable user");
+
+        // Check if the User exists
+        Optional<User> userOptional = userRepository.findByEmail(userRequest.getEmail())
+                .or(() -> userRepository.findByUsername(userRequest.getUsername()));
+
+        if (userOptional.isPresent()) {
+            if(userOptional.get().isEnabled()) {
+                LOGGER.warn("User is already enabled");
+                return ResponseEntity.status(400).body(new ErrorResponse("User is already enabled"));
+            }
+
+            userOptional.get().setEnabled(true);
+            userRepository.save(userOptional.get());
+            // Send a telemetry event for user enablement
+            telemetryUtility.sendTelemetryEvent("user-enabled", Map.of("userId", userOptional.get().getId()));
+
+            LOGGER.info("User has been enabled");
+            return ResponseEntity.ok(new UserResponse("User has been enabled"));
+        }
+
+        // Handle the case where neither username nor email exists
+        LOGGER.error("Invalid user credentials");
+        return ResponseEntity.status(404).body(new ErrorResponse("User is not present"));
+    }
+
+
+    /**
+     * Business logic for disabling a user
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> disableUser(UserRequest userRequest) {
+        LOGGER.info("Attempting to disable user");
+
+        try {
+            String authToken = getAuthToken();
+
+            //Get the user, throw an exception if the username is not found
+            User requestingUser = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("Requesting user not found"));
+
+            //Get the target user, throw an exception if the username or email are not found
+            User user = userRepository.findByUsername(userRequest.getUsername())
+                    .or(() -> userRepository.findByEmail(userRequest.getEmail()))
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            if(!user.isEnabled())
+                throw new RuntimeException("User is already disabled");
+
+            // Throw error if the target user is a SUPER user
+            if(user.getRole() == Role.SUPER)
+                throw new RuntimeException("Super users cannot be disabled");
+
+            // If the target user is an ADMIN user, ensure the requesting user is either the target user or a SUPER user
+            if(user.getRole() == Role.ADMIN && requestingUser.getRole() != Role.SUPER)
+                if(!requestingUser.getId().equals(user.getId()))
+                    throw new RuntimeException("ADMIN users can only be self disabled or by a SUPER user");
+
+            // If the requesting user is not SUPER, ADMIN, or self, don't allow users to disable each other
+            if(requestingUser.getRole() != Role.SUPER && requestingUser.getRole() != Role.ADMIN && !requestingUser.getId().equals(user.getId()))
+                throw new RuntimeException("Users can only be disabled by self, ADMIN, or SUPER users");
+
+            // Disable the user
+            user.setEnabled(false);
+            userRepository.save(user);
+            // Send a telemetry event for user disable
+            telemetryUtility.sendTelemetryEvent("user-disabled", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("User has been disabled");
+            return ResponseEntity.ok(new UserResponse("User has been disabled"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to disable user: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for deleting a user
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> deleteUser(UserRequest userRequest) {
+        LOGGER.info("Attempting to delete user");
+
+        try {
+            String authToken = getAuthToken();
+
+            //Authenticate the user, throw an AuthenticationException if the username and password combination are incorrect
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                            jwtService.extractUsername(authToken, false),
+                            userRequest.getPassword()
+                    )
+            );
+
+            //Get the user, throw an exception if the username is not found
+            User requestingUser = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("Requesting user not found"));
+
+            //Get the target user, throw an exception if the username or email are not found
+            User user = userRepository.findByUsername(userRequest.getUsername())
+                    .or(() -> userRepository.findByEmail(userRequest.getEmail()))
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            if(user.getRole() == Role.SUPER && userRepository.countByRole(Role.SUPER) == 1)
+                throw new RuntimeException("The last SUPER user cannot be deleted");
+
+            // If the target user is a SUPER user, ensure the requesting user is the target user
+            if(user.getRole() == Role.SUPER && !requestingUser.getId().equals(user.getId()))
+                throw new RuntimeException("SUPER users can only be self-deleted");
+
+            // If the target user is an ADMIN user, ensure the requesting user is either the target user or a SUPER user
+            if(user.getRole() == Role.ADMIN && requestingUser.getRole() != Role.SUPER)
+                if(!requestingUser.getId().equals(user.getId()))
+                    throw new RuntimeException("ADMIN users can only be self-deleted or by a SUPER user");
+
+            // If the requesting user is not SUPER, ADMIN, or self, don't allow users to delete each other
+            if(requestingUser.getRole() != Role.SUPER && requestingUser.getRole() != Role.ADMIN && !requestingUser.getId().equals(user.getId()))
+                throw new RuntimeException("Users can only be deleted by self, ADMIN, or SUPER users");
+
+            if(fileserviceIntegration) {
+                LOGGER.debug("Attempting to delete user from all File collections");
+                ResponseEntity<?> fileResponse = fileUtility.deleteUserFromAllCollections(user.getUsername(), authToken);
+
+                if(fileResponse.getStatusCode().value() != 200)
+                    throw new RestClientException("Error when deleting user from fileservice:\n\n" + fileResponse.getBody());
+            }
+            if(vaultserviceIntegration) {
+                LOGGER.debug("Attempting to delete user from all Vault services");
+                String vaultToken = jwtService.generateServiceAccountToken(
+                        serviceAccountRepository.findByClientId("auth")
+                                .orElseThrow(() -> new RuntimeException("Auth service account was not found")), false
+                );
+                ResponseEntity<?> vaultResponse = vaultUtility.deleteUserFromAllServices(user.getUsername(), vaultToken);
+
+                if(vaultResponse.getStatusCode().value() != 200)
+                    throw new RestClientException("Error when deleting user from vaultservice:\n\n" + vaultResponse.getBody());
+            }
+
+            //Delete the user
+            userRepository.delete(user);
+            // Send a telemetry event for user delete
+            telemetryUtility.sendTelemetryEvent("user-delete", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("User successfully deleted");
+            return ResponseEntity.ok(new UserResponse("User successfully deleted"));
+        } catch(RestClientException ex) {
+            LOGGER.error("A downstream service was unavailable while deleting user: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(503).body(new ErrorResponse("Unable to delete user. Please try again later."));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to delete user: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for updating a user's email
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> updateEmail(UserRequest userRequest) {
+        LOGGER.info("Attempting to update user's email address");
+
+        try {
+            //Check if the email has already been registered
+            if (userRepository.findByEmail(userRequest.getNewEmail()).isPresent())
+                throw new RuntimeException("Email already registered");
+
+            String authToken = getAuthToken();
+
+            //Authenticate the user, throw an AuthenticationException if the username and password combination are incorrect
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                            jwtService.extractUsername(authToken, false),
+                            userRequest.getPassword()
+                    )
+            );
+
+            //Get the user, throw an exception if the username is not found
+            User user = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+            //Update the user's email
+            user.setEmail(userRequest.getNewEmail());
+
+            String refreshToken = jwtService.generateToken(user, true);
+
+            user.setRefreshToken(refreshToken);
+            userRepository.save(user);
+            // Send a telemetry event for user email update
+            telemetryUtility.sendTelemetryEvent("user-email-update", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("User email successfully updated");
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, jwtService.buildTokenCookie("refresh_token", refreshToken, true).toString())
+                    .body(new UserResponse("Email successfully updated"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to update user email: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for updating a user's username
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> updateUsername(UserRequest userRequest) {
+        LOGGER.info("Attempting to update username for user");
+
+        try {
+            // Check if the username has already been registered
+            if (userRepository.findByUsername(userRequest.getNewUsername()).isPresent())
+                throw new RuntimeException("Username already registered");
+
+            String authToken = getAuthToken();
+
+            //Authenticate the user, throw an AuthenticationException if the username and password combination are incorrect
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                            jwtService.extractUsername(authToken, false),
+                            userRequest.getPassword()
+                    )
+            );
+
+            //Get the user, throw an exception if the username is not found
+            User user = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+            //Update the user's username
+            user.setUsername(userRequest.getNewUsername());
+
+            //Create a JWT token to authenticate the user
+            String refreshToken = jwtService.generateToken(user, true);
+
+            //Add the refresh token to the user and save
+            user.setRefreshToken(refreshToken);
+            userRepository.save(user);
+            // Send a telemetry event for username update
+            telemetryUtility.sendTelemetryEvent("user-username-update", Map.of("userId", user.getId()));
+
+            //Return a 200 response with a success message
+            LOGGER.info("Successfully updated username");
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, jwtService.buildTokenCookie("refresh_token", refreshToken, true).toString())
+                    .body(new UserResponse("Username successfully updated"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to update username: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(404).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for updating a user's role
+     * @return {@link ResponseEntity} with a {@link UserResponse} if successful, otherwise return with an {@link ErrorResponse}
+     */
+    @Transactional
+    public ResponseEntity<?> updateRole(UserRequest userRequest) {
+        LOGGER.info("Attempting to update user's role");
+
+        try {
+            String authToken = getAuthToken();
+
+            //Get the user, throw an exception if the username is not found
+            User requestingUser = userRepository.findByUsername(jwtService.extractUsername(authToken, false))
+                    .orElseThrow(() -> new UsernameNotFoundException("Requesting user not found"));
+
+            //Get the target user, throw an exception if the username or email are not found
+            User user = userRepository.findByUsername(userRequest.getUsername())
+                    .or(() -> userRepository.findByEmail(userRequest.getEmail()))
+                    .orElseThrow(() -> new UsernameNotFoundException("Target user not found"));
+
+            if(user.getRole() == Role.SUPER && userRequest.getNewRole() != Role.SUPER &&
+                    userRepository.findByRole(Role.SUPER).size() == 1)
+                throw new RuntimeException("The last SUPER user cannot be demoted");
+
+            // If the target user is a SUPER user, ensure the requesting user is also a SUPER user
+            if(user.getRole() == Role.SUPER && requestingUser.getRole() != Role.SUPER)
+                throw new RuntimeException("Only SUPER users can update roles of SUPER users");
+
+            // Only SUPER users can assign SUPER roles
+            if(userRequest.getNewRole() == Role.SUPER && requestingUser.getRole() != Role.SUPER)
+                throw new RuntimeException("Only SUPER users can assign SUPER roles");
+
+            // Only SUPER and ADMIN users can assign roles
+            if(requestingUser.getRole() != Role.SUPER && requestingUser.getRole() != Role.ADMIN)
+                throw new RuntimeException("Only SUPER or ADMIN users can update roles");
+
+            //Append the authorizations and save
+            user.setRole(userRequest.getNewRole());
+            userRepository.save(user);
+            // Send a telemetry event for user role update
+            telemetryUtility.sendTelemetryEvent("user-role-update", Map.of(
+                    "userId", user.getId(),
+                    "role", userRequest.getNewRole().name()
+            ));
+
+            //Return a 200 response with a success message
+            LOGGER.info("User role successfully updated");
+            return ResponseEntity.ok(new UserResponse("User role successfully updated"));
+        } catch (Exception ex) {
+            LOGGER.error("Failed to update user role: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for retrieving a user's ID
+     * @return {@link ResponseEntity} with user's ID if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> getUserId(String username) {
+        LOGGER.info("Attempting to get user ID");
+
+        try {
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("No user exists with that username"));
+
+            //Return a 200 response with the user's ID
+            LOGGER.info("User Id retrieval success");
+            return ResponseEntity.ok(user.getId());
+        } catch (Exception ex) {
+            LOGGER.error("Failed to fetch user id: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    public ResponseEntity<?> getSuperUserId() {
+        LOGGER.info("Attempting to get super user ID");
+
+        try {
+            User user = userRepository.findFirstByRole(Role.SUPER)
+                    .orElseThrow(() -> new RuntimeException("No super user exists"));
+
+            LOGGER.info("Super user ID retrieval success");
+            return ResponseEntity.ok(user.getId());
+        } catch(Exception ex) {
+            LOGGER.error("Failed to fetch super user ID: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    /**
+     * Business logic for searching for a user based on username or email address
+     * @return {@link ResponseEntity} with user's ID if successful, otherwise return with an {@link ErrorResponse}
+     */
+    public ResponseEntity<?> searchUsers(String query) {
+        LOGGER.info("Attempting to query users");
+
+        try {
+            User user = userRepository.findByUsername(query)
+                    .or(() -> userRepository.findByEmail(query))
+                    .orElseThrow(() -> new RuntimeException("No user exists with that username or email address"));
+
+            UserResponse response = new UserResponse();
+            response.setUserId(user.getId());
+            response.setUsername(user.getUsername());
+            response.setEmail(user.getEmail());
+
+            LOGGER.info("User search success");
+            return ResponseEntity.ok(response);
+        } catch (Exception ex) {
+            LOGGER.error("Failed to search users: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    public ResponseEntity<?> getAdminUser(String query) {
+        LOGGER.info("Attempting to get admin user details");
+
+        try {
+            User user = userRepository.findByUsername(query)
+                    .or(() -> userRepository.findByEmail(query))
+                    .orElseThrow(() -> new RuntimeException("No user exists with that username or email address"));
+
+            UserResponse response = new UserResponse();
+            response.setUserId(user.getId());
+            response.setUsername(user.getUsername());
+            response.setEmail(user.getEmail());
+            response.setRole(user.getRole());
+            response.setEnabled(user.isEnabled());
+            Set<String> directAuthorizations = user.getAuthorizations().stream()
+                    .map(Authorization::getName).collect(java.util.stream.Collectors.toSet());
+            Set<String> roleAuthorizations = roleAuthorizationRepository.findByRole(user.getRole()).stream()
+                    .map(RoleAuthorization::getAuthorization).map(Authorization::getName)
+                    .collect(java.util.stream.Collectors.toSet());
+            Set<String> authorizations = new HashSet<>(directAuthorizations);
+            authorizations.addAll(roleAuthorizations);
+
+            response.setAuthorizations(authorizations);
+            response.setDirectAuthorizations(directAuthorizations);
+            response.setRoleAuthorizations(roleAuthorizations);
+
+            LOGGER.info("Admin user details successfully retrieved");
+            return ResponseEntity.ok(response);
+        } catch(Exception ex) {
+            LOGGER.error("Failed to get admin user details: " + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    public ResponseEntity<?> getUserDetailsByIds(List<UUID> ids) {
+        LOGGER.info("Attempting to get list of user details by ids");
+
+        try {
+            List<User> users = userRepository.findByIdIn(ids);
+
+            List<UserResponse> response = users.stream()
+                    .map(user -> {
+                        UserResponse r = new UserResponse();
+                        r.setUserId(user.getId());
+                        r.setUsername(user.getUsername());
+                        r.setEmail(user.getEmail());
+                        return r;
+                    }).toList();
+
+            LOGGER.info("List of user details successfully compiled");
+            return ResponseEntity.ok(response);
+        } catch (Exception ex) {
+            LOGGER.error("Failed to get user details by IDs" + ex.getMessage());
+            LOGGER.debug("Stack trace: ", ex);
+            return ResponseEntity.status(400).body(new ErrorResponse(ex.getMessage()));
+        }
+    }
+
+    private String getAuthToken() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        String authorizationHeader = attributes.getRequest().getHeader("Authorization");
+
+        if(authorizationHeader != null && authorizationHeader.startsWith("Bearer "))
+            return authorizationHeader.substring(7);
+
+        Cookie[] cookies = attributes.getRequest().getCookies();
+        if(cookies != null) {
+            for(Cookie cookie : cookies) {
+                if(cookie.getName().equals("access_token") && !cookie.getValue().isBlank())
+                    return cookie.getValue();
+            }
+        }
+
+        throw new RuntimeException("Access token was not found");
+    }
+}

@@ -1,0 +1,177 @@
+package com.example.authservice.user;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * {@link RestController} for manipulating {@link User} objects
+ */
+@RestController
+@RequestMapping("/api/auth/user")
+public class UserController {
+    /**
+     * {@link UserService} for executing business logic on User objects
+     */
+    private final UserService userService;
+
+    /**
+     * Constructs a new {@code UserController} with the given dependencies.
+     *
+     * @param userService {@link UserService} for performing business logic on {@link User} object requests
+     */
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    /**
+     * Post request endpoint for updating a user's password
+     * @param request {@link UserRequest}
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/update-password")
+    public ResponseEntity<?> updatePassword(@RequestBody UserRequest request) {
+        return userService.updatePassword(request);
+    }
+
+    /**
+     * Post request endpoint for adding to a user's set of authorities
+     * @param {@link List} of strings of authorities to be added to the user
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/add-authorizations-to-user")
+    public ResponseEntity<?> addAuthorizationsToUser(@RequestBody UserRequest request) {
+        return userService.addAuthorizationsToUser(request);
+    }
+
+    /**
+     * Post request endpoint for removing from a user's set of authorities
+     * @param {@link List} of strings of authorities to be removed from the user
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/remove-authorizations")
+    public ResponseEntity<?> removeAuthorizations(@RequestBody UserRequest request) {
+        return userService.removeAuthorizations(request);
+    }
+
+    /**
+     * Post request endpoint for initiating password resets
+     * @param {@link UserRequest} containing user credentials
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/send-password-reset-email")
+    public ResponseEntity<?> sendPasswordResetEmail(@RequestBody UserRequest request) {
+        return userService.sendPasswordResetEmail(request);
+    }
+
+    /**
+     * Post request endpoint for initiating password resets
+     * @param {@link UserRequest} containing user credentials
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody UserRequest request) {
+        return userService.resetPassword(request);
+    }
+    /**
+     * Post request endpoint for enabling a user
+     * @param {@link Map} containing the email address of the user to enable
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/enable-user")
+    public ResponseEntity<?> enableUser(@RequestBody UserRequest userRequest) {
+        return userService.enableUser(userRequest);
+    }
+
+    /**
+     * Post request endpoint for disabling a user
+     * @param {@link Map} containing the email address of the user to disable
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/disable-user")
+    public ResponseEntity<?> disableUser(@RequestBody UserRequest userRequest) {
+        return userService.disableUser(userRequest);
+    }
+
+    /**
+     * Post request endpoint for deleting a user
+     * @param {@link UserRequest} containing the user's credentials
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/delete-user")
+    public ResponseEntity<?> deleteUser(@RequestBody UserRequest userRequest) {
+        return userService.deleteUser(userRequest);
+    }
+
+    /**
+     * Post request endpoint for updating a user's email
+     * @param {@link UserRequest} containing the user's credentials
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/update-email")
+    public ResponseEntity<?> updateEmail(@RequestBody UserRequest userRequest) {
+        return userService.updateEmail(userRequest);
+    }
+
+    /**
+     * Post request endpoint for updating a user's username
+     * @param {@link UserRequest} containing the user's credentials
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/update-username")
+    public ResponseEntity<?> updateUsername(@RequestBody UserRequest userRequest) {
+        return userService.updateUsername(userRequest);
+    }
+
+    /**
+     * Post request endpoint for updating a user's role
+     * @param {@link UserRequest} containing the user's credentials and new role
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/update-role")
+    public ResponseEntity<?> updateRole(@RequestBody UserRequest userRequest) {
+        return userService.updateRole(userRequest);
+    }
+
+    /**
+     * Get request endpoint for retrieving a user's ID from their username
+     * @param username containing the user's credentials
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/get-user-id")
+    public ResponseEntity<?> getUserId(@RequestBody UserLookupRequest userLookupRequest) {
+        return userService.getUserId(userLookupRequest.getUsername());
+    }
+
+    @PostMapping("/get-super-user-id")
+    public ResponseEntity<?> getSuperUserId() {
+        return userService.getSuperUserId();
+    }
+
+    /**
+     * Get request endpoint for searching for users based on username or email address
+     * @param query containing the user's username or email address
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/search-users")
+    public ResponseEntity<?> searchUsers(@RequestBody UserLookupRequest userLookupRequest) {
+        return userService.searchUsers(userLookupRequest.getQuery());
+    }
+
+    @PostMapping("/get-admin-user")
+    public ResponseEntity<?> getAdminUser(@RequestBody UserLookupRequest userLookupRequest) {
+        return userService.getAdminUser(userLookupRequest.getQuery());
+    }
+
+    /**
+     * Get request endpoint for retrieving a list of user details by passing user ids
+     * @param ids list of the user ids to fetch
+     * @return {@link ResponseEntity}
+     */
+    @PostMapping("/get-user-details-by-ids")
+    public ResponseEntity<?> getUserDetailsByIds(@RequestBody List<UUID> ids) {
+        return userService.getUserDetailsByIds(ids);
+    }
+}

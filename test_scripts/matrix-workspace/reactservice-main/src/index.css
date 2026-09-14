@@ -1,0 +1,243 @@
+:root {
+  color-scheme: light;
+  --app-bg: #ffffff;
+  --app-text: #333333;
+  --app-text-muted: #555555;
+  --app-border: #dddddd;
+  --app-border-strong: #cccccc;
+  --app-surface: #f9f9f9;
+  --app-surface-elevated: #ffffff;
+  --app-surface-muted: #f1f1f1;
+  --app-surface-muted-alt: #fcfcfc;
+  --app-surface-hover: #f3f4f6;
+  --app-input-bg: #ffffff;
+  --app-input-text: #333333;
+  --app-toolbar-bg: #ffffff;
+  --app-toolbar-text: #595959;
+  --app-toolbar-border: lightgrey;
+  --app-toolbar-popout-bg: #14161a;
+  --app-toolbar-popout-text: #ffffff;
+  --app-overlay: rgba(0, 0, 0, 0.7);
+  --app-popup-bg: #222222;
+  --app-popup-text: #ffffff;
+  --app-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --app-shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --app-neutral-button: #cccccc;
+  --app-neutral-button-hover: #aaaaaa;
+  --settings-nav-active: lightblue;
+  --settings-nav-active-text: inherit;
+  --theme-toggle-thumb: #cbd5e1;
+  --theme-toggle-sun: #f59e0b;
+  --theme-toggle-moon: #64748b;
+  --theme-toggle-moon-muted: #94a3b8;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #0f172a;
+  --app-text: #e2e8f0;
+  --app-text-muted: #cbd5e1;
+  --app-border: #334155;
+  --app-border-strong: #475569;
+  --app-surface: #162133;
+  --app-surface-elevated: #1e293b;
+  --app-surface-muted: #243247;
+  --app-surface-muted-alt: #1a2638;
+  --app-surface-hover: #2b3b52;
+  --app-input-bg: #0f172a;
+  --app-input-text: #f8fafc;
+  --app-toolbar-bg: #111827;
+  --app-toolbar-text: #e2e8f0;
+  --app-toolbar-border: #273449;
+  --app-toolbar-popout-bg: #1e293b;
+  --app-toolbar-popout-text: #f8fafc;
+  --app-overlay: rgba(2, 6, 23, 0.78);
+  --app-popup-bg: #18212f;
+  --app-popup-text: #f8fafc;
+  --app-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  --app-shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.25);
+  --app-neutral-button: #475569;
+  --app-neutral-button-hover: #64748b;
+  --settings-nav-active: #1d4ed8;
+  --settings-nav-active-text: #eff6ff;
+  --theme-toggle-thumb: #f8fafc;
+  --theme-toggle-sun: #fbbf24;
+  --theme-toggle-moon: #93c5fd;
+  --theme-toggle-moon-muted: #475569;
+}
+
+html {
+  background-color: var(--app-bg);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* For hiding the background of autocomplete entries */
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+    transition: background-color 600000s 0s, color 600000s 0s;
+}
+input[data-autocompleted] {
+    background-color: transparent !important;
+}
+
+.masked-input {
+  -webkit-text-security: disc;
+}
+
+.hidden-input {
+    display: none;
+}
+
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--app-overlay);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-overlay h1 {
+    color: var(--app-popup-text);
+}
+
+.popup-content {
+    background: var(--app-popup-bg);
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 800px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: var(--app-shadow);
+    color: var(--app-popup-text);
+}
+
+.popup-content button {
+    margin: 15px;
+    padding: 10px 16px;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 5rem;
+    width: 5vw;
+}
+
+.popup-content input {
+    width: 90%;
+}
+
+:root[data-theme="dark"] .popup-content input {
+    background-color: var(--app-input-bg);
+    color: var(--app-input-text);
+    border: 1px solid var(--app-border);
+}
+
+.auth-div {
+  border-radius: 20px;
+  background-color: #282c34;
+  padding: 20px 40px 20px 40px;
+  width: 14vw;
+  min-width: 230px;
+  
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 55vh;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.auth-div b {
+  text-align: center;
+  margin: 3vh 0;
+  color: red;
+  font-size: large;
+}
+
+.auth-div p {
+  text-align: center;
+  color: white;
+}
+
+.auth-div form {
+  width: 12vw;
+  min-width: 200px;
+}
+
+.auth-div hr {
+  margin-bottom: 5vh;
+  width: 100%;
+}
+
+.auth-div h1 {
+  color: white;
+}
+
+.auth-div h4 {
+  color: white;
+}
+
+.auth-div a {
+  color: white;
+  text-decoration: none;
+}
+
+.auth-div label {
+  float: left;
+  color: white;
+  width: 100%;
+}
+
+.auth-div input {
+  position: relative;
+  background-color: transparent;
+  color: white;
+  border: none;
+  outline: none;
+  margin-top: 2vh;
+}
+
+.auth-div button {
+  width: 100%;
+  border-radius: 30px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  height: 3.5vh;
+  cursor: pointer;
+}
+
+.error-div {
+  height: 140px;
+  display: flex;
+}

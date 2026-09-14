@@ -1,0 +1,231 @@
+
+
+/* Overlay + popup container */
+.user-manager-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--app-overlay);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.user-manager-popup {
+    background: var(--app-surface-elevated);
+    border-radius: 12px;
+    padding: 25px;
+    width: 80%;
+    max-width: 900px;
+    max-height: 85vh;
+    overflow-y: auto;
+    font-family: Arial, sans-serif;
+    color: var(--app-text);
+    box-shadow: var(--app-shadow);
+}
+
+/* Header bar */
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.popup-header h2 {
+    font-size: 22px;
+    margin: 0;
+}
+
+.close-icon {
+    font-size: 22px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.close-icon:hover {
+    color: #c00;
+}
+
+/* Search + Add controls */
+.user-controls {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.user-controls input {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid var(--app-border-strong);
+    background: var(--app-input-bg);
+    color: var(--app-input-text);
+}
+
+.user-controls button {
+    padding: 8px 14px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    transition: background-color 0.2s ease;
+}
+
+.user-controls button:hover {
+    background-color: #0069d9;
+}
+
+/* Search dropdown results */
+.search-dropdown {
+    position: absolute;
+    top: 42px;
+    left: 0;
+    right: 0;
+    background: var(--app-surface-elevated);
+    border: 1px solid var(--app-border-strong);
+    border-radius: 6px;
+    z-index: 10000;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: var(--app-shadow-soft);
+}
+
+.search-result {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+.search-result:hover {
+    background: var(--app-surface-muted);
+}
+
+/* User table */
+.user-table {
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.user-header,
+.user-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 120px;
+    gap: 8px;
+    padding: 10px;
+    font-size: 14px;
+    align-items: center;
+}
+
+.user-header {
+    background: var(--app-surface-muted);
+    font-weight: bold;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.user-row {
+    background: var(--app-surface);
+    border-bottom: 1px solid var(--app-border);
+}
+.user-row:nth-child(even) {
+    background: var(--app-surface-muted-alt);
+}
+
+/* Inline role editing */
+.user-row select {
+    padding: 6px 8px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid var(--app-border-strong);
+    background: var(--app-input-bg);
+    color: var(--app-input-text);
+}
+
+/* Action icons + buttons */
+.actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.row-icon {
+    padding: 6px;
+    font-size: 16px;
+    background-color: var(--app-surface-muted);
+    border: 1px solid var(--app-border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.row-icon:hover {
+    background-color: var(--app-surface-hover);
+}
+
+.actions button {
+    padding: 5px 10px;
+    font-size: 13px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.actions button:first-of-type {
+    background-color: #28a745;
+    color: white;
+}
+.actions button:first-of-type:hover {
+    background-color: #218838;
+}
+
+.actions button:last-of-type {
+    background-color: #6c757d;
+    color: white;
+}
+.actions button:last-of-type:hover {
+    background-color: #5a6268;
+}
+
+/* Pagination */
+.pagination {
+    margin-top: 15px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.pagination button {
+    padding: 5px 10px;
+    border: 1px solid var(--app-border-strong);
+    background-color: var(--app-surface-elevated);
+    color: var(--app-text);
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background-color: #007bff;
+    color: white;
+}
+
+.pagination .active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

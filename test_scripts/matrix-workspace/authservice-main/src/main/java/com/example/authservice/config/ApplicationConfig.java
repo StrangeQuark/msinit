@@ -1,0 +1,113 @@
+package com.example.authservice.config;
+
+import com.example.authservice.serviceaccount.ServiceAccountRepository;
+import com.example.authservice.user.UserRepository;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
+
+/**
+ * Spring {@link Configuration} for application settings
+ */
+@Configuration
+public class ApplicationConfig {
+
+    @Value("${service.http.connect.timeout}")
+    private int serviceHttpConnectTimeout;
+
+    @Value("${service.http.read.timeout}")
+    private int serviceHttpReadTimeout;
+
+    /**
+     * {@link UserRepository} for fetching the user from the database
+     */
+    private final UserRepository userRepository;
+
+    /**
+     * {@link ServiceAccountRepository} for fetching service accounts from the database
+     */
+    private final ServiceAccountRepository serviceAccountRepository;
+
+    /**
+     * Constructs a new {@code ApplicationConfig} with the given dependencies.
+     *
+     * @param userRepository {@link UserRepository} for processing requests to the User database
+     * @param serviceAccountRepository {@link ServiceAccountRepository} for processing requests to the Service Account database
+     */
+    public ApplicationConfig(UserRepository userRepository, ServiceAccountRepository serviceAccountRepository) {
+        this.userRepository = userRepository;
+        this.serviceAccountRepository = serviceAccountRepository;
+    }
+
+    /**
+     * {@link Bean} for overriding the {@link UserDetailsService#loadUserByUsername(String)} method
+     * @return {@link org.springframework.security.core.userdetails.UserDetails} for the user,
+     *          throw {@link UsernameNotFoundException} if the user cannot be found
+     */
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return username -> userRepository.findByUsername(username).map(user -> (UserDetails) user)
+                    .or(() -> serviceAccountRepository.findByClientId(username).map(sa -> (UserDetails) sa))
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+    }
+
+
+    /**
+     * {@link Bean} data access object responsible for fetching
+     * {@link org.springframework.security.core.userdetails.UserDetails} and encoding the password
+     * @return {@link DaoAuthenticationProvider} with {@link #userDetailsService()} and {@link #passwordEncoder()}
+     */
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+
+        //Service to use to fetch information about our user details
+        daoAuthenticationProvider.setUserDetailsService(userDetailsService());
+
+        //Provide the password encoder
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+
+        return daoAuthenticationProvider;
+    }
+
+    /**
+     * {@link Bean} for setting the password encoder
+     * @return new {@link org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder}
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(serviceHttpConnectTimeout);
+        requestFactory.setReadTimeout(serviceHttpReadTimeout);
+
+        return new RestTemplate(requestFactory);
+    }
+
+    /**
+     * {@link Bean} for managing the username and password authentication
+     * @param authenticationConfiguration
+     * @return {@link AuthenticationManager} from {@link AuthenticationConfiguration}
+     * @throws Exception
+     */
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+            throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+}
