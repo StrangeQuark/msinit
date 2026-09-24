@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPrivateKey, createPublicKey } from 'crypto'
-import { createEnvFile, createStackConfiguration, createTestEnvFile } from '../server.js'
+import { createEnvFile, createStackConfiguration, createTestEnvFile, shouldRemoveCicdFile } from '../server.js'
 
 function getEnvValue(content, name) {
     return content.match(new RegExp("^" + name + "=(.*)$", "m"))[1]
@@ -17,7 +17,7 @@ test("generates matching values for selected services", () => {
     ])
     const authEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nFILESERVICE_INTEGRATION=true\nEMAILSERVICE_INTEGRATION=true\nVAULTSERVICE_INTEGRATION=true\nSERVICE_SECRET_FILE=change-me\nJWT_PRIVATE_KEY=change-me\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nENCRYPTION_KEY=change-me", "authservice", stackConfiguration)
     const fileEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nTELEMETRYSERVICE_INTEGRATION=true\nSERVICE_SECRET_FILE=change-me\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nENCRYPTION_KEY=change-me", "fileservice", stackConfiguration)
-    const testEnv = createEnvFile("EMAILSERVICE_INTEGRATION=true\nSERVICE_SECRET_TEST=change-me\nINITIAL_SUPER_CREDENTIALS_DIRECTORY=change-me\nINITIAL_SUPER_CREDENTIALS_FILE=change-me", "testservice", stackConfiguration)
+    const testEnv = createEnvFile("EMAILSERVICE_INTEGRATION=true\nSERVICE_SECRET_TEST=change-me\nINITIAL_SUPER_USERNAME=change-me\nINITIAL_SUPER_PASSWORD=change-me", "testservice", stackConfiguration)
     const privateKey = createPrivateKey({
         key: Buffer.from(getEnvValue(authEnv, "JWT_PRIVATE_KEY"), "base64"),
         format: "der",
@@ -34,8 +34,8 @@ test("generates matching values for selected services", () => {
     assert.notEqual(getEnvValue(authEnv, "POSTGRES_PASSWORD"), getEnvValue(fileEnv, "POSTGRES_PASSWORD"))
     assert.match(getEnvValue(authEnv, "ENCRYPTION_KEY"), /^[A-F0-9]{32}$/)
     assert.equal(getEnvValue(testEnv, "SERVICE_SECRET_EMAIL"), stackConfiguration.serviceSecrets.email)
-    assert.equal(getEnvValue(testEnv, "INITIAL_SUPER_CREDENTIALS_DIRECTORY"), "../authservice-main/bootstrap-credentials")
-    assert.equal(getEnvValue(testEnv, "INITIAL_SUPER_CREDENTIALS_FILE"), "../authservice-main/bootstrap-credentials/initial-super-user.txt")
+    assert.equal(getEnvValue(testEnv, "INITIAL_SUPER_USERNAME"), "test-super")
+    assert.equal(getEnvValue(testEnv, "INITIAL_SUPER_PASSWORD"), "test-password")
 })
 
 test("disables absent integrations", () => {
@@ -50,6 +50,41 @@ test("disables absent integrations", () => {
     assert.notEqual(getEnvValue(fileEnv, "SERVICE_SECRET_FILE"), "change-me")
 })
 
+test("generates VPN and Kubernetes credentials", () => {
+    const stackConfiguration = createStackConfiguration([
+        { repo: "authservice", branch: "main" },
+        { repo: "reactservice", branch: "main" },
+        { repo: "vpnservice", branch: "main" },
+        { repo: "kubernetesservice", branch: "main" }
+    ])
+    const vpnEnv = createEnvFile(
+        "AUTHSERVICE_INTEGRATION=false\nREACTSERVICE_INTEGRATION=false\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nENCRYPTION_KEY=change-me\nWIREGUARD_CONTROL_TOKEN=change-me",
+        "vpnservice",
+        stackConfiguration
+    )
+    const reactEnv = createEnvFile(
+        "VITE_VPNSERVICE_INTEGRATION=false\nVITE_VPNROUTER_INTEGRATION=false",
+        "reactservice",
+        stackConfiguration
+    )
+    const kubernetesEnv = createEnvFile(
+        "KUBERNETES_CICD_TOKEN=change-me",
+        "kubernetesservice",
+        stackConfiguration
+    )
+
+    assert.equal(getEnvValue(vpnEnv, "AUTHSERVICE_INTEGRATION"), "true")
+    assert.equal(getEnvValue(vpnEnv, "REACTSERVICE_INTEGRATION"), "true")
+    assert.equal(getEnvValue(vpnEnv, "JWT_PUBLIC_KEY"), stackConfiguration.jwtKeys.publicKey)
+    assert.notEqual(getEnvValue(vpnEnv, "POSTGRES_USER"), "change-me")
+    assert.notEqual(getEnvValue(vpnEnv, "POSTGRES_PASSWORD"), "change-me")
+    assert.match(getEnvValue(vpnEnv, "ENCRYPTION_KEY"), /^[A-F0-9]{32}$/)
+    assert.notEqual(getEnvValue(vpnEnv, "WIREGUARD_CONTROL_TOKEN"), "change-me")
+    assert.equal(getEnvValue(reactEnv, "VITE_VPNSERVICE_INTEGRATION"), "true")
+    assert.equal(getEnvValue(reactEnv, "VITE_VPNROUTER_INTEGRATION"), "true")
+    assert.notEqual(getEnvValue(kubernetesEnv, "KUBERNETES_CICD_TOKEN"), "change-me")
+})
+
 test("adds the selected CICD repository once", () => {
     const stackConfiguration = createStackConfiguration([
         { repo: "authservice", branch: "develop" },
@@ -59,18 +94,42 @@ test("adds the selected CICD repository once", () => {
     assert.equal(stackConfiguration.repositories.filter(repository => repository.repo === "jenkinsservice").length, 1)
 })
 
+test("does not add a GitHub Actions repository", () => {
+    const stackConfiguration = createStackConfiguration([
+        { repo: "authservice", branch: "develop" }
+    ], "githubactions")
+
+    assert.equal(stackConfiguration.repositories.some(repository => repository.repo === "githubactions"), false)
+})
+
+test("removes unselected CICD files", () => {
+    const jenkinsFile = "authservice-main/Jenkinsfile"
+    const githubActionsFile = "authservice-main/.github/workflows/build.yml"
+
+    assert.equal(shouldRemoveCicdFile(jenkinsFile, "jenkins"), false)
+    assert.equal(shouldRemoveCicdFile(githubActionsFile, "jenkins"), true)
+
+    assert.equal(shouldRemoveCicdFile(jenkinsFile, "githubactions"), true)
+    assert.equal(shouldRemoveCicdFile(githubActionsFile, "githubactions"), false)
+
+    assert.equal(shouldRemoveCicdFile(jenkinsFile, "none"), true)
+    assert.equal(shouldRemoveCicdFile(githubActionsFile, "none"), true)
+})
+
 test("generates test rate limits", () => {
     const stackConfiguration = createStackConfiguration([
         { repo: "authservice", branch: "main" },
         { repo: "gatewayservice", branch: "main" },
         { repo: "testservice", branch: "main" }
     ])
-    const authEnv = createTestEnvFile("INVITE_ONLY=false\nCOOKIE_SECURE=true\nLOGIN_RATE_LIMIT_MAX_REQUESTS=10\nREGISTER_RATE_LIMIT_MAX_REQUESTS=2\nPASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS=3\nSERVICE_ACCOUNT_RATE_LIMIT_MAX_REQUESTS=30", "authservice", stackConfiguration)
+    const authEnv = createTestEnvFile("INVITE_ONLY=false\nCOOKIE_SECURE=true\nLOGIN_RATE_LIMIT_MAX_REQUESTS=10\nREGISTER_RATE_LIMIT_MAX_REQUESTS=2\nPASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS=3\nSERVICE_ACCOUNT_RATE_LIMIT_MAX_REQUESTS=30\nINITIAL_SUPER_USERNAME=\nINITIAL_SUPER_PASSWORD=", "authservice", stackConfiguration)
     const gatewayEnv = createTestEnvFile("AUTH_GATEWAY_RATE_LIMIT_REPLENISH_RATE=5\nAUTH_GATEWAY_RATE_LIMIT_BURST_CAPACITY=60", "gatewayservice", stackConfiguration)
 
     assert.equal(getEnvValue(authEnv, "INVITE_ONLY"), "true")
     assert.equal(getEnvValue(authEnv, "COOKIE_SECURE"), "false")
     assert.equal(getEnvValue(authEnv, "REGISTER_RATE_LIMIT_MAX_REQUESTS"), "1000")
+    assert.equal(getEnvValue(authEnv, "INITIAL_SUPER_USERNAME"), "test-super")
+    assert.equal(getEnvValue(authEnv, "INITIAL_SUPER_PASSWORD"), "test-password")
     assert.equal(getEnvValue(gatewayEnv, "AUTH_GATEWAY_RATE_LIMIT_REPLENISH_RATE"), "1000")
     assert.equal(getEnvValue(gatewayEnv, "AUTH_GATEWAY_RATE_LIMIT_BURST_CAPACITY"), "1000")
 })

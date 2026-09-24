@@ -19,7 +19,8 @@ const integrationVariables = {
     reactservice: ["REACTSERVICE_INTEGRATION", "VITE_REACTSERVICE_INTEGRATION"],
     telemetryservice: ["TELEMETRYSERVICE_INTEGRATION", "VITE_TELEMETRYSERVICE_INTEGRATION"],
     testservice: ["TESTSERVICE_INTEGRATION"],
-    vaultservice: ["VAULTSERVICE_INTEGRATION", "VITE_VAULTSERVICE_INTEGRATION"]
+    vaultservice: ["VAULTSERVICE_INTEGRATION", "VITE_VAULTSERVICE_INTEGRATION"],
+    vpnservice: ["VPNSERVICE_INTEGRATION", "VITE_VPNSERVICE_INTEGRATION", "VITE_VPNROUTER_INTEGRATION"]
 }
 
 const serviceAccountNames = {
@@ -84,9 +85,6 @@ export function createStackConfiguration(requestedRepositories, CICD) {
     if(CICD === "jenkins")
         addRepository(repositories, "jenkinsservice")
 
-    if(CICD === "githubactions")
-        addRepository(repositories, "githubactions")
-
     const selectedServices = new Set(repositories.map(repository => repository.repo))
     const jwtKeys = generateJwtKeys()
     const serviceSecrets = {}
@@ -99,12 +97,12 @@ export function createStackConfiguration(requestedRepositories, CICD) {
             serviceSecrets[serviceAccountName] = randomToken()
     }
 
-    for(const serviceName of ["authservice", "emailservice", "fileservice", "telemetryservice", "vaultservice"]) {
+    for(const serviceName of ["authservice", "emailservice", "fileservice", "telemetryservice", "vaultservice", "vpnservice"]) {
         if(selectedServices.has(serviceName))
             encryptionKeys[serviceName] = randomEncryptionKey()
     }
 
-    for(const serviceName of ["authservice", "emailservice", "fileservice", "vaultservice"]) {
+    for(const serviceName of ["authservice", "emailservice", "fileservice", "vaultservice", "vpnservice"]) {
         if(selectedServices.has(serviceName)) {
             databaseCredentials[serviceName] = {
                 username: randomDatabaseUsername(serviceName),
@@ -129,6 +127,8 @@ export function createStackConfiguration(requestedRepositories, CICD) {
         bootstrapToken: randomToken(),
         authRedisPassword: randomToken(),
         gatewayRedisPassword: randomToken(),
+        wireguardControlToken: randomToken(),
+        kubernetesCicdToken: randomToken(),
         mongoRootUsername: randomDatabaseUsername("mongo_root"),
         mongoRootPassword: randomToken(),
         mongoAppUsername: randomDatabaseUsername("telemetry_app"),
@@ -174,7 +174,7 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
         envValues.JWT_PUBLIC_KEY = stackConfiguration.jwtKeys.publicKey
         envValues.POSTGRES_USER = stackConfiguration.databaseCredentials.authservice.username
         envValues.POSTGRES_PASSWORD = stackConfiguration.databaseCredentials.authservice.password
-        envValues.AUTH_RATE_LIMIT_REDIS_PASSWORD = stackConfiguration.authRedisPassword
+        envValues.AUTH_REDIS_PASSWORD = stackConfiguration.authRedisPassword
         envValues.SERVICE_ACCOUNTS = Object.entries(serviceAccountNames)
             .filter(([integrationService]) => stackConfiguration.selectedServices.has(integrationService))
             .map(([, serviceAccountName]) => serviceAccountName)
@@ -226,22 +226,24 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
             envValues[tokenName] = token
     }
 
+    if(serviceName === "vpnservice") {
+        envValues.JWT_PUBLIC_KEY = stackConfiguration.jwtKeys.publicKey
+        envValues.POSTGRES_USER = stackConfiguration.databaseCredentials.vpnservice.username
+        envValues.POSTGRES_PASSWORD = stackConfiguration.databaseCredentials.vpnservice.password
+        envValues.ENCRYPTION_KEY = stackConfiguration.encryptionKeys.vpnservice
+        envValues.WIREGUARD_CONTROL_TOKEN = stackConfiguration.wireguardControlToken
+    }
+
+    if(serviceName === "kubernetesservice")
+        envValues.KUBERNETES_CICD_TOKEN = stackConfiguration.kubernetesCicdToken
+
     if(serviceName === "testservice") {
         envValues.BOOTSTRAP_TOKEN = stackConfiguration.bootstrapToken
         envValues.SERVICE_SECRET_TEST = stackConfiguration.serviceSecrets.test
         envValues.SERVICE_SECRET_AUTH = stackConfiguration.serviceSecrets.auth
         envValues.SERVICE_SECRET_EMAIL = stackConfiguration.serviceSecrets.email
-
-        const authserviceRepository = stackConfiguration.repositories.find(repository => repository.repo === "authservice")
-
-        if(authserviceRepository) {
-            const credentialsDirectory = "../" + authserviceRepository.repo + "-" + authserviceRepository.branch + "/bootstrap-credentials"
-            envValues.INITIAL_SUPER_CREDENTIALS_DIRECTORY = credentialsDirectory
-            envValues.INITIAL_SUPER_CREDENTIALS_FILE = credentialsDirectory + "/initial-super-user.txt"
-        } else {
-            envValues.INITIAL_SUPER_CREDENTIALS_DIRECTORY = "."
-            envValues.INITIAL_SUPER_CREDENTIALS_FILE = "initial-super-user.txt"
-        }
+        envValues.INITIAL_SUPER_USERNAME = "test-super"
+        envValues.INITIAL_SUPER_PASSWORD = "test-password"
     }
 
     return envValues
@@ -272,6 +274,8 @@ export function createTestEnvFile(template, serviceName, stackConfiguration) {
         envContent = setEnvVariable(envContent, "REGISTER_RATE_LIMIT_MAX_REQUESTS", 1000)
         envContent = setEnvVariable(envContent, "PASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS", 1000)
         envContent = setEnvVariable(envContent, "SERVICE_ACCOUNT_RATE_LIMIT_MAX_REQUESTS", 1000)
+        envContent = setEnvVariable(envContent, "INITIAL_SUPER_USERNAME", "test-super")
+        envContent = setEnvVariable(envContent, "INITIAL_SUPER_PASSWORD", "test-password")
     }
 
     if(serviceName === "gatewayservice") {
@@ -286,6 +290,19 @@ function isEnvExample(fileName) {
     const pathParts = fileName.split("/")
 
     return pathParts.length === 2 && pathParts[1] === ".env.example"
+}
+
+export function shouldRemoveCicdFile(fileName, CICD) {
+    const isJenkinsFile = fileName.endsWith("/Jenkinsfile")
+    const isGithubActionsFile = fileName.endsWith("/.github/workflows/build.yml")
+
+    if(CICD === "jenkins")
+        return isGithubActionsFile
+
+    if(CICD === "githubactions")
+        return isJenkinsFile
+
+    return isJenkinsFile || isGithubActionsFile
 }
 
 // Fetch the selected repositories and build a configured archive
@@ -334,6 +351,9 @@ app.post('/batch-download', async (req, res) => {
 
                 for (let fileName in repoZip.files) {
                     const file = repoZip.files[fileName]
+
+                    if(shouldRemoveCicdFile(fileName, CICD))
+                        continue
 
                     if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
                         zip.file(fileName, await file.async('nodebuffer'))
