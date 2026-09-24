@@ -19,7 +19,8 @@ const integrationVariables = {
     reactservice: ["REACTSERVICE_INTEGRATION", "VITE_REACTSERVICE_INTEGRATION"],
     telemetryservice: ["TELEMETRYSERVICE_INTEGRATION", "VITE_TELEMETRYSERVICE_INTEGRATION"],
     testservice: ["TESTSERVICE_INTEGRATION"],
-    vaultservice: ["VAULTSERVICE_INTEGRATION", "VITE_VAULTSERVICE_INTEGRATION"]
+    vaultservice: ["VAULTSERVICE_INTEGRATION", "VITE_VAULTSERVICE_INTEGRATION"],
+    vpnservice: ["VPNSERVICE_INTEGRATION", "VITE_VPNSERVICE_INTEGRATION", "VITE_VPNROUTER_INTEGRATION"]
 }
 
 const serviceAccountNames = {
@@ -84,9 +85,6 @@ export function createStackConfiguration(requestedRepositories, CICD) {
     if(CICD === "jenkins")
         addRepository(repositories, "jenkinsservice")
 
-    if(CICD === "githubactions")
-        addRepository(repositories, "githubactions")
-
     const selectedServices = new Set(repositories.map(repository => repository.repo))
     const jwtKeys = generateJwtKeys()
     const serviceSecrets = {}
@@ -99,12 +97,12 @@ export function createStackConfiguration(requestedRepositories, CICD) {
             serviceSecrets[serviceAccountName] = randomToken()
     }
 
-    for(const serviceName of ["authservice", "emailservice", "fileservice", "telemetryservice", "vaultservice"]) {
+    for(const serviceName of ["authservice", "emailservice", "fileservice", "telemetryservice", "vaultservice", "vpnservice"]) {
         if(selectedServices.has(serviceName))
             encryptionKeys[serviceName] = randomEncryptionKey()
     }
 
-    for(const serviceName of ["authservice", "emailservice", "fileservice", "vaultservice"]) {
+    for(const serviceName of ["authservice", "emailservice", "fileservice", "vaultservice", "vpnservice"]) {
         if(selectedServices.has(serviceName)) {
             databaseCredentials[serviceName] = {
                 username: randomDatabaseUsername(serviceName),
@@ -129,6 +127,8 @@ export function createStackConfiguration(requestedRepositories, CICD) {
         bootstrapToken: randomToken(),
         authRedisPassword: randomToken(),
         gatewayRedisPassword: randomToken(),
+        wireguardControlToken: randomToken(),
+        kubernetesCicdToken: randomToken(),
         mongoRootUsername: randomDatabaseUsername("mongo_root"),
         mongoRootPassword: randomToken(),
         mongoAppUsername: randomDatabaseUsername("telemetry_app"),
@@ -226,6 +226,17 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
             envValues[tokenName] = token
     }
 
+    if(serviceName === "vpnservice") {
+        envValues.JWT_PUBLIC_KEY = stackConfiguration.jwtKeys.publicKey
+        envValues.POSTGRES_USER = stackConfiguration.databaseCredentials.vpnservice.username
+        envValues.POSTGRES_PASSWORD = stackConfiguration.databaseCredentials.vpnservice.password
+        envValues.ENCRYPTION_KEY = stackConfiguration.encryptionKeys.vpnservice
+        envValues.WIREGUARD_CONTROL_TOKEN = stackConfiguration.wireguardControlToken
+    }
+
+    if(serviceName === "kubernetesservice")
+        envValues.KUBERNETES_CICD_TOKEN = stackConfiguration.kubernetesCicdToken
+
     if(serviceName === "testservice") {
         envValues.BOOTSTRAP_TOKEN = stackConfiguration.bootstrapToken
         envValues.SERVICE_SECRET_TEST = stackConfiguration.serviceSecrets.test
@@ -281,6 +292,19 @@ function isEnvExample(fileName) {
     return pathParts.length === 2 && pathParts[1] === ".env.example"
 }
 
+export function shouldRemoveCicdFile(fileName, CICD) {
+    const isJenkinsFile = fileName.endsWith("/Jenkinsfile")
+    const isGithubActionsFile = fileName.endsWith("/.github/workflows/build.yml")
+
+    if(CICD === "jenkins")
+        return isGithubActionsFile
+
+    if(CICD === "githubactions")
+        return isJenkinsFile
+
+    return isJenkinsFile || isGithubActionsFile
+}
+
 // Fetch the selected repositories and build a configured archive
 app.post('/batch-download', async (req, res) => {
     try {
@@ -327,6 +351,9 @@ app.post('/batch-download', async (req, res) => {
 
                 for (let fileName in repoZip.files) {
                     const file = repoZip.files[fileName]
+
+                    if(shouldRemoveCicdFile(fileName, CICD))
+                        continue
 
                     if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
                         zip.file(fileName, await file.async('nodebuffer'))

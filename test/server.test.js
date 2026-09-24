@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPrivateKey, createPublicKey } from 'crypto'
-import { createEnvFile, createStackConfiguration, createTestEnvFile } from '../server.js'
+import { createEnvFile, createStackConfiguration, createTestEnvFile, shouldRemoveCicdFile } from '../server.js'
 
 function getEnvValue(content, name) {
     return content.match(new RegExp("^" + name + "=(.*)$", "m"))[1]
@@ -50,6 +50,41 @@ test("disables absent integrations", () => {
     assert.notEqual(getEnvValue(fileEnv, "SERVICE_SECRET_FILE"), "change-me")
 })
 
+test("generates VPN and Kubernetes credentials", () => {
+    const stackConfiguration = createStackConfiguration([
+        { repo: "authservice", branch: "main" },
+        { repo: "reactservice", branch: "main" },
+        { repo: "vpnservice", branch: "main" },
+        { repo: "kubernetesservice", branch: "main" }
+    ])
+    const vpnEnv = createEnvFile(
+        "AUTHSERVICE_INTEGRATION=false\nREACTSERVICE_INTEGRATION=false\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nENCRYPTION_KEY=change-me\nWIREGUARD_CONTROL_TOKEN=change-me",
+        "vpnservice",
+        stackConfiguration
+    )
+    const reactEnv = createEnvFile(
+        "VITE_VPNSERVICE_INTEGRATION=false\nVITE_VPNROUTER_INTEGRATION=false",
+        "reactservice",
+        stackConfiguration
+    )
+    const kubernetesEnv = createEnvFile(
+        "KUBERNETES_CICD_TOKEN=change-me",
+        "kubernetesservice",
+        stackConfiguration
+    )
+
+    assert.equal(getEnvValue(vpnEnv, "AUTHSERVICE_INTEGRATION"), "true")
+    assert.equal(getEnvValue(vpnEnv, "REACTSERVICE_INTEGRATION"), "true")
+    assert.equal(getEnvValue(vpnEnv, "JWT_PUBLIC_KEY"), stackConfiguration.jwtKeys.publicKey)
+    assert.notEqual(getEnvValue(vpnEnv, "POSTGRES_USER"), "change-me")
+    assert.notEqual(getEnvValue(vpnEnv, "POSTGRES_PASSWORD"), "change-me")
+    assert.match(getEnvValue(vpnEnv, "ENCRYPTION_KEY"), /^[A-F0-9]{32}$/)
+    assert.notEqual(getEnvValue(vpnEnv, "WIREGUARD_CONTROL_TOKEN"), "change-me")
+    assert.equal(getEnvValue(reactEnv, "VITE_VPNSERVICE_INTEGRATION"), "true")
+    assert.equal(getEnvValue(reactEnv, "VITE_VPNROUTER_INTEGRATION"), "true")
+    assert.notEqual(getEnvValue(kubernetesEnv, "KUBERNETES_CICD_TOKEN"), "change-me")
+})
+
 test("adds the selected CICD repository once", () => {
     const stackConfiguration = createStackConfiguration([
         { repo: "authservice", branch: "develop" },
@@ -57,6 +92,28 @@ test("adds the selected CICD repository once", () => {
     ], "jenkins")
 
     assert.equal(stackConfiguration.repositories.filter(repository => repository.repo === "jenkinsservice").length, 1)
+})
+
+test("does not add a GitHub Actions repository", () => {
+    const stackConfiguration = createStackConfiguration([
+        { repo: "authservice", branch: "develop" }
+    ], "githubactions")
+
+    assert.equal(stackConfiguration.repositories.some(repository => repository.repo === "githubactions"), false)
+})
+
+test("removes unselected CICD files", () => {
+    const jenkinsFile = "authservice-main/Jenkinsfile"
+    const githubActionsFile = "authservice-main/.github/workflows/build.yml"
+
+    assert.equal(shouldRemoveCicdFile(jenkinsFile, "jenkins"), false)
+    assert.equal(shouldRemoveCicdFile(githubActionsFile, "jenkins"), true)
+
+    assert.equal(shouldRemoveCicdFile(jenkinsFile, "githubactions"), true)
+    assert.equal(shouldRemoveCicdFile(githubActionsFile, "githubactions"), false)
+
+    assert.equal(shouldRemoveCicdFile(jenkinsFile, "none"), true)
+    assert.equal(shouldRemoveCicdFile(githubActionsFile, "none"), true)
 })
 
 test("generates test rate limits", () => {
