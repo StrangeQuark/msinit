@@ -174,7 +174,7 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
         envValues.JWT_PUBLIC_KEY = stackConfiguration.jwtKeys.publicKey
         envValues.POSTGRES_USER = stackConfiguration.databaseCredentials.authservice.username
         envValues.POSTGRES_PASSWORD = stackConfiguration.databaseCredentials.authservice.password
-        envValues.AUTH_RATE_LIMIT_REDIS_PASSWORD = stackConfiguration.authRedisPassword
+        envValues.AUTH_REDIS_PASSWORD = stackConfiguration.authRedisPassword
         envValues.SERVICE_ACCOUNTS = Object.entries(serviceAccountNames)
             .filter(([integrationService]) => stackConfiguration.selectedServices.has(integrationService))
             .map(([, serviceAccountName]) => serviceAccountName)
@@ -231,17 +231,8 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
         envValues.SERVICE_SECRET_TEST = stackConfiguration.serviceSecrets.test
         envValues.SERVICE_SECRET_AUTH = stackConfiguration.serviceSecrets.auth
         envValues.SERVICE_SECRET_EMAIL = stackConfiguration.serviceSecrets.email
-
-        const authserviceRepository = stackConfiguration.repositories.find(repository => repository.repo === "authservice")
-
-        if(authserviceRepository) {
-            const credentialsDirectory = "../" + authserviceRepository.repo + "-" + authserviceRepository.branch + "/bootstrap-credentials"
-            envValues.INITIAL_SUPER_CREDENTIALS_DIRECTORY = credentialsDirectory
-            envValues.INITIAL_SUPER_CREDENTIALS_FILE = credentialsDirectory + "/initial-super-user.txt"
-        } else {
-            envValues.INITIAL_SUPER_CREDENTIALS_DIRECTORY = "."
-            envValues.INITIAL_SUPER_CREDENTIALS_FILE = "initial-super-user.txt"
-        }
+        envValues.INITIAL_SUPER_USERNAME = "test-super"
+        envValues.INITIAL_SUPER_PASSWORD = "test-password"
     }
 
     return envValues
@@ -272,6 +263,8 @@ export function createTestEnvFile(template, serviceName, stackConfiguration) {
         envContent = setEnvVariable(envContent, "REGISTER_RATE_LIMIT_MAX_REQUESTS", 1000)
         envContent = setEnvVariable(envContent, "PASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS", 1000)
         envContent = setEnvVariable(envContent, "SERVICE_ACCOUNT_RATE_LIMIT_MAX_REQUESTS", 1000)
+        envContent = setEnvVariable(envContent, "INITIAL_SUPER_USERNAME", "test-super")
+        envContent = setEnvVariable(envContent, "INITIAL_SUPER_PASSWORD", "test-password")
     }
 
     if(serviceName === "gatewayservice") {
