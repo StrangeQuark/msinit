@@ -16,7 +16,7 @@ test("generates matching values for selected services", () => {
         { repo: "testservice", branch: "main" }
     ])
     const authEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nFILESERVICE_INTEGRATION=true\nEMAILSERVICE_INTEGRATION=true\nVAULTSERVICE_INTEGRATION=true\nSERVICE_SECRET_FILE=change-me\nJWT_PRIVATE_KEY=change-me\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nENCRYPTION_KEY=change-me", "authservice", stackConfiguration)
-    const fileEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nTELEMETRYSERVICE_INTEGRATION=true\nSERVICE_SECRET_FILE=change-me\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nENCRYPTION_KEY=change-me", "fileservice", stackConfiguration)
+    const fileEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nTELEMETRYSERVICE_INTEGRATION=true\nSERVICE_SECRET_FILE=change-me\nJWT_PUBLIC_KEY=change-me\nPOSTGRES_USER=change-me\nPOSTGRES_PASSWORD=change-me\nFILE_STORAGE_ACCESS_KEY=change-me\nFILE_STORAGE_SECRET_KEY=change-me\nENCRYPTION_KEY=change-me", "fileservice", stackConfiguration)
     const testEnv = createEnvFile("EMAILSERVICE_INTEGRATION=true\nSERVICE_SECRET_TEST=change-me\nINITIAL_SUPER_USERNAME=change-me\nINITIAL_SUPER_PASSWORD=change-me", "testservice", stackConfiguration)
     const privateKey = createPrivateKey({
         key: Buffer.from(getEnvValue(authEnv, "JWT_PRIVATE_KEY"), "base64"),
@@ -32,6 +32,8 @@ test("generates matching values for selected services", () => {
     assert.equal(getEnvValue(authEnv, "SERVICE_SECRET_FILE"), getEnvValue(fileEnv, "SERVICE_SECRET_FILE"))
     assert.equal(publicKey, getEnvValue(fileEnv, "JWT_PUBLIC_KEY"))
     assert.notEqual(getEnvValue(authEnv, "POSTGRES_PASSWORD"), getEnvValue(fileEnv, "POSTGRES_PASSWORD"))
+    assert.notEqual(getEnvValue(fileEnv, "FILE_STORAGE_ACCESS_KEY"), "change-me")
+    assert.notEqual(getEnvValue(fileEnv, "FILE_STORAGE_SECRET_KEY"), "change-me")
     assert.match(getEnvValue(authEnv, "ENCRYPTION_KEY"), /^[A-F0-9]{32}$/)
     assert.equal(getEnvValue(testEnv, "SERVICE_SECRET_EMAIL"), stackConfiguration.serviceSecrets.email)
     assert.equal(getEnvValue(testEnv, "INITIAL_SUPER_USERNAME"), "test-super")
@@ -42,7 +44,7 @@ test("disables absent integrations", () => {
     const stackConfiguration = createStackConfiguration([
         { repo: "fileservice", branch: "main" }
     ])
-    const fileEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nTELEMETRYSERVICE_INTEGRATION=true\nJWT_PUBLIC_KEY=change-me\nSERVICE_SECRET_FILE=change-me", "fileservice", stackConfiguration)
+    const fileEnv = createEnvFile("AUTHSERVICE_INTEGRATION=true\nTELEMETRYSERVICE_INTEGRATION=true\nJWT_PUBLIC_KEY=change-me\nSERVICE_SECRET_FILE=change-me\nFILE_STORAGE_ACCESS_KEY=change-me\nFILE_STORAGE_SECRET_KEY=change-me", "fileservice", stackConfiguration)
 
     assert.equal(getEnvValue(fileEnv, "AUTHSERVICE_INTEGRATION"), "false")
     assert.equal(getEnvValue(fileEnv, "TELEMETRYSERVICE_INTEGRATION"), "false")

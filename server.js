@@ -128,6 +128,8 @@ export function createStackConfiguration(requestedRepositories, CICD) {
         authRedisPassword: randomToken(),
         gatewayRedisPassword: randomToken(),
         wireguardControlToken: randomToken(),
+        fileStorageAccessKey: randomDatabaseUsername("files"),
+        fileStorageSecretKey: randomToken(),
         kubernetesCicdToken: randomToken(),
         mongoRootUsername: randomDatabaseUsername("mongo_root"),
         mongoRootPassword: randomToken(),
@@ -197,6 +199,8 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
         envValues.POSTGRES_USER = stackConfiguration.databaseCredentials.fileservice.username
         envValues.POSTGRES_PASSWORD = stackConfiguration.databaseCredentials.fileservice.password
         envValues.SERVICE_SECRET_FILE = stackConfiguration.serviceSecrets.file
+        envValues.FILE_STORAGE_ACCESS_KEY = stackConfiguration.fileStorageAccessKey
+        envValues.FILE_STORAGE_SECRET_KEY = stackConfiguration.fileStorageSecretKey
     }
 
     if(serviceName === "gatewayservice")
