@@ -2,6 +2,12 @@ pipeline {
     agent { label 'linux-agent' }
 
     stages {
+        stage("Test") {
+            steps {
+                sh "npm ci && npm test"
+            }
+        }
+
         stage("Deploy & Health Check") {
             steps {
                 script {
