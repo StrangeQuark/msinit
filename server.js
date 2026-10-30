@@ -1,5 +1,5 @@
 import express from 'express'
-import fetch from 'node-fetch'
+import { log, tracedFetch, traceRequest } from './tracing.js'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import JSZip from 'jszip'
@@ -42,8 +42,9 @@ const vaultCicdTokens = {
 }
 
 // Middleware to parse JSON request bodies
+app.use(traceRequest)
 app.use(bodyParser.json())
-app.use(cors())
+app.use(cors({ exposedHeaders: ['X-Trace-ID'] }))
 
 function randomToken() {
     return randomBytes(32).toString("base64url")
@@ -344,9 +345,9 @@ app.post('/batch-download', async (req, res) => {
             const url = `https://github.com/StrangeQuark/${repo}/archive/refs/heads/${branch}.zip`
 
             try {
-                const response = await fetch(url)
+                const response = await tracedFetch(url)
                 if (!response.ok) {
-                    console.error(`Failed to fetch ${repo}: ${response.statusText}`)
+                    log('ERROR', `Failed to fetch ${repo}: ${response.statusText}`)
                     continue
                 }
 
@@ -402,12 +403,12 @@ app.post('/batch-download', async (req, res) => {
                             if(isEnvExample(fileName))
                                 envTemplates.push({ repo, fileName, fileContent })
                         } catch (error) {
-                            console.error(`Error processing file ${fileName}: ${error.message}`)
+                            log('ERROR', `Error processing file ${fileName}: ${error.message}`, error)
                         }
                     }
                 }
             } catch (error) {
-                console.error(`Error fetching ${repo}: ${error.message}`)
+                log('ERROR', `Error fetching ${repo}: ${error.message}`, error)
             }
         }
 
@@ -427,11 +428,11 @@ app.post('/batch-download', async (req, res) => {
             })
             res.send(content)
         }).catch((error) => {
-            console.error('Error generating ZIP:', error)
+            log('ERROR', 'Error generating ZIP', error)
             res.status(500).send('Failed to generate ZIP file.')
         })
     } catch (error) {
-        console.error('Batch download error:', error)
+        log('ERROR', 'Batch download error', error)
         res.status(500).send("Internal Server Error")
     }
 })
@@ -441,6 +442,6 @@ app.get('/health', (req, res) => {
 })
 
 if(process.argv[1] === fileURLToPath(import.meta.url))
-    app.listen(3000, () => console.log('Server running on http://localhost:3000'))
+    app.listen(3000, () => log('INFO', 'Server running on http://localhost:3000'))
 
 export default app
