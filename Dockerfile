@@ -6,7 +6,7 @@ WORKDIR /nodeservice
 COPY package*.json ./
 RUN npm install
 
-COPY server.js ./
+COPY server.js tracing.js ./
 COPY launch_scripts ./launch_scripts
 
 # Stage 2: Deploy
@@ -20,7 +20,7 @@ EXPOSE 3000
 COPY package*.json ./
 RUN npm install --production
 
-COPY --from=build /nodeservice/server.js ./
+COPY --from=build /nodeservice/server.js /nodeservice/tracing.js ./
 COPY --from=build /nodeservice/launch_scripts ./launch_scripts
 
 CMD ["node", "server.js"]
