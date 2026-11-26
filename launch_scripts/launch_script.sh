@@ -27,17 +27,17 @@ run_compose_linux() {
     local folder="$1"
     local env_file="$2"
     local term
-    local command="docker-compose up --build"
+    local command="docker compose up --build"
     term=$(find_terminal_linux) || {
         echo "No supported terminal emulator found."
         return 1
     }
 
     if [ -n "$env_file" ]; then
-        command="docker-compose --env-file $env_file up --build"
+        command="docker compose --env-file $env_file up --build"
     fi
 
-    echo "Launching docker-compose in $folder using $term"
+    echo "Launching docker compose in $folder using $term"
 
     case "$term" in
         gnome-terminal|mate-terminal)
@@ -58,13 +58,13 @@ run_compose_linux() {
 run_compose_macos() {
     local folder="$1"
     local env_file="$2"
-    local command="docker-compose up --build"
+    local command="docker compose up --build"
 
     if [ -n "$env_file" ]; then
-        command="docker-compose --env-file $env_file up --build"
+        command="docker compose --env-file $env_file up --build"
     fi
 
-    echo "Launching docker-compose in $folder using macOS Terminal"
+    echo "Launching docker compose in $folder using macOS Terminal"
     osascript <<EOF
 tell application "Terminal"
     do script "cd '$folder' && $command; exit"
@@ -134,7 +134,7 @@ teardown() {
         if [ -d "$folder" ] && [ -f "$folder/docker-compose.yml" ]; then
             (
                 cd "$folder"
-                docker-compose down -v
+                docker compose down -v
             )
         fi
     done
@@ -180,10 +180,10 @@ for service in auth email file vault react gateway; do
 done
 
 cd "$testservice_folder"
-docker-compose up --build --abort-on-container-exit
+docker compose up --build --abort-on-container-exit
 exit_code=$?
-docker-compose logs --no-color > test-service.log
-docker-compose down -v
+docker compose logs --no-color > test-service.log
+docker compose down -v
 
 if [ "$exit_code" -ne 0 ]; then
     echo "Testservice FAILED with exit code $exit_code"

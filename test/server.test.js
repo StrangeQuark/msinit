@@ -1,11 +1,117 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPrivateKey, createPublicKey } from 'crypto'
-import { createEnvFile, createStackConfiguration, createTestEnvFile, shouldRemoveCicdFile } from '../server.js'
+import JSZip from 'jszip'
+import { createEnvFile, createStackConfiguration, createTestEnvFile, readRepositoryFile, shouldRemoveCicdFile } from '../server.js'
 
 function getEnvValue(content, name) {
     return content.match(new RegExp("^" + name + "=(.*)$", "m"))[1]
 }
+
+test("generates Jenkins integration settings and the matching Kubernetes token", () => {
+    for(const vaultEnabled of [true, false]) {
+        const repositories = [
+            { repo: "vpnservice", branch: "main" },
+            { repo: "kubernetesservice", branch: "main" }
+        ]
+
+        if(vaultEnabled)
+            repositories.push({ repo: "vaultservice", branch: "main" })
+
+        const stackConfiguration = createStackConfiguration(repositories, "jenkins")
+        const jenkinsEnv = createEnvFile(
+            "VPNSERVICE_INTEGRATION=false\nVAULTSERVICE_ENABLED=true\nKUBERNETES_CICD_TOKEN=change-me",
+            "jenkinsservice",
+            stackConfiguration
+        )
+        const kubernetesEnv = createEnvFile(
+            "KUBERNETES_CICD_TOKEN=change-me",
+            "kubernetesservice",
+            stackConfiguration
+        )
+
+        assert.equal(getEnvValue(jenkinsEnv, "VPNSERVICE_INTEGRATION"), "true")
+        assert.equal(getEnvValue(jenkinsEnv, "VAULTSERVICE_ENABLED"), String(vaultEnabled))
+        assert.equal(
+            getEnvValue(jenkinsEnv, "KUBERNETES_CICD_TOKEN"),
+            getEnvValue(kubernetesEnv, "KUBERNETES_CICD_TOKEN")
+        )
+        assert.notEqual(getEnvValue(jenkinsEnv, "KUBERNETES_CICD_TOKEN"), "change-me")
+    }
+})
+
+test("disables the Jenkins VPN job when VPN is not selected", () => {
+    const stackConfiguration = createStackConfiguration([
+        { repo: "authservice", branch: "main" }
+    ], "jenkins")
+    const jenkinsEnv = createEnvFile(
+        "VPNSERVICE_INTEGRATION=true",
+        "jenkinsservice",
+        stackConfiguration
+    )
+
+    assert.equal(getEnvValue(jenkinsEnv, "VPNSERVICE_INTEGRATION"), "false")
+})
+
+test("preserves binary bytes when copying repository archives", async () => {
+    const sourceZip = new JSZip()
+    const outputZip = new JSZip()
+    const bytes = Buffer.concat([
+        Buffer.from([0x00, 0xff, 0xfe, 0x80]),
+        Buffer.from("com.strangequark 21-alpine")
+    ])
+    const extensions = ["mp3", "webm", "png", "ico", "jar", "pyc", "bin"]
+
+    for(const extension of extensions)
+        sourceZip.file("testservice-main/sample." + extension, bytes)
+
+    const sourceArchive = await JSZip.loadAsync(
+        await sourceZip.generateAsync({ type: "nodebuffer" })
+    )
+
+    for(const extension of extensions) {
+        const fileName = "testservice-main/sample." + extension
+        const content = await readRepositoryFile(fileName, sourceArchive.file(fileName))
+
+        assert.ok(Buffer.isBuffer(content))
+        outputZip.file(fileName, content)
+    }
+
+    const outputArchive = await JSZip.loadAsync(
+        await outputZip.generateAsync({ type: "nodebuffer" })
+    )
+
+    for(const extension of extensions) {
+        const fileName = "testservice-main/sample." + extension
+
+        assert.deepEqual(await outputArchive.file(fileName).async("nodebuffer"), bytes)
+    }
+})
+
+test("reads source and configuration files as text", async () => {
+    const zip = new JSZip()
+    const text = "com.strangequark\nUnicode: café\n"
+    const fileNames = [
+        "service-main/src/main/java/com/strangequark/Example.java",
+        "service-main/pom.xml",
+        "service-main/.env.example",
+        "service-main/.env.test",
+        "service-main/Dockerfile",
+        "service-main/Jenkinsfile",
+        "service-main/mvnw",
+        "service-main/.gitignore",
+        "service-main/README.md",
+        "service-main/.github/workflows/build.yml",
+        "service-main/src/App.jsx",
+        "service-main/public/logo.svg"
+    ]
+
+    for(const fileName of fileNames) {
+        zip.file(fileName, text)
+
+        assert.equal(await readRepositoryFile(fileName, zip.file(fileName)), text)
+    }
+})
 
 test("generates matching values for selected services", () => {
     const stackConfiguration = createStackConfiguration([
@@ -85,6 +191,48 @@ test("generates VPN and Kubernetes credentials", () => {
     assert.equal(getEnvValue(reactEnv, "VITE_VPNSERVICE_INTEGRATION"), "true")
     assert.equal(getEnvValue(reactEnv, "VITE_VPNROUTER_INTEGRATION"), "true")
     assert.notEqual(getEnvValue(kubernetesEnv, "KUBERNETES_CICD_TOKEN"), "change-me")
+})
+
+test("generates matching scoped CI/CD tokens for Vault and Jenkins", () => {
+    const repositories = [
+        "authservice", "emailservice", "fileservice", "gatewayservice", "loggerservice",
+        "reactservice", "telemetryservice", "testservice", "vaultservice", "vpnservice"
+    ].map(repo => ({ repo, branch: "main" }))
+    const tokenNames = [
+        "AUTH_CICD_TOKEN", "EMAIL_CICD_TOKEN", "FILE_CICD_TOKEN", "GATEWAY_CICD_TOKEN",
+        "LOGGER_CICD_TOKEN", "REACT_CICD_TOKEN", "TELEMETRY_CICD_TOKEN", "TEST_CICD_TOKEN", "VPN_CICD_TOKEN"
+    ]
+    const template = tokenNames.map(name => name + "=change-me").join("\n")
+    const stackConfiguration = createStackConfiguration(repositories, "jenkins")
+    const vaultEnv = createEnvFile(template, "vaultservice", stackConfiguration)
+    const jenkinsEnv = createEnvFile(template, "jenkinsservice", stackConfiguration)
+    const nextStackConfiguration = createStackConfiguration(repositories, "jenkins")
+    const tokens = []
+
+    for(const tokenName of tokenNames) {
+        const token = getEnvValue(vaultEnv, tokenName)
+
+        assert.match(token, /^[A-Za-z0-9_-]{43}$/)
+        assert.equal(getEnvValue(jenkinsEnv, tokenName), token)
+        assert.equal(stackConfiguration.cicdTokens[tokenName], token)
+        assert.notEqual(nextStackConfiguration.cicdTokens[tokenName], token)
+        tokens.push(token)
+    }
+
+    assert.equal(new Set(tokens).size, tokenNames.length)
+})
+
+test("generates CI/CD tokens only for selected services", () => {
+    const stackConfiguration = createStackConfiguration([
+        { repo: "vaultservice", branch: "main" },
+        { repo: "testservice", branch: "main" }
+    ], "jenkins")
+    const vaultEnv = createEnvFile("TEST_CICD_TOKEN=change-me", "vaultservice", stackConfiguration)
+    const jenkinsEnv = createEnvFile("TEST_CICD_TOKEN=change-me", "jenkinsservice", stackConfiguration)
+
+    assert.deepEqual(Object.keys(stackConfiguration.cicdTokens), ["TEST_CICD_TOKEN"])
+    assert.notEqual(getEnvValue(vaultEnv, "TEST_CICD_TOKEN"), "change-me")
+    assert.equal(getEnvValue(jenkinsEnv, "TEST_CICD_TOKEN"), getEnvValue(vaultEnv, "TEST_CICD_TOKEN"))
 })
 
 test("adds the selected CICD repository once", () => {

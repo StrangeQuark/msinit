@@ -17,7 +17,7 @@ for network in networks:
         output = subprocess.run(['docker', 'network', 'create', network], capture_output=True, text=True).stdout.strip("\n")
         print("Created " + network + ": " + output)
 
-# Iterate through each service and run docker-compose up --build in a new terminal window
+# Iterate through each service and run docker compose up --build in a new terminal window
 base_dir = os.getcwd()  # Get the current working directory
 
 for folder in os.listdir(base_dir):
@@ -26,7 +26,7 @@ for folder in os.listdir(base_dir):
     if os.path.isdir(folder_path) and 'docker-compose.yml' in os.listdir(folder_path):
         try:
             system = platform.system()
-            command = ['docker-compose', 'up', '--build']
+            command = ['docker', 'compose', 'up', '--build']
 
             if system == "Windows":
                 subprocess.Popen(['start', 'cmd', '/k'] + command, cwd=folder_path, shell=True)
@@ -38,4 +38,4 @@ for folder in os.listdir(base_dir):
             else:
                 print(f"Unsupported OS: {system}")
         except Exception as e:
-            print(f"Error running docker-compose in {folder_path}: {e}")
+            print(f"Error running docker compose in {folder_path}: {e}")
