@@ -38,7 +38,9 @@ const vaultCicdTokens = {
     gatewayservice: "GATEWAY_CICD_TOKEN",
     loggerservice: "LOGGER_CICD_TOKEN",
     reactservice: "REACT_CICD_TOKEN",
-    telemetryservice: "TELEMETRY_CICD_TOKEN"
+    telemetryservice: "TELEMETRY_CICD_TOKEN",
+    testservice: "TEST_CICD_TOKEN",
+    vpnservice: "VPN_CICD_TOKEN"
 }
 
 // Middleware to parse JSON request bodies
@@ -242,6 +244,14 @@ function getServiceEnvValues(serviceName, stackConfiguration) {
     if(serviceName === "kubernetesservice")
         envValues.KUBERNETES_CICD_TOKEN = stackConfiguration.kubernetesCicdToken
 
+    if(serviceName === "jenkinsservice") {
+        envValues.VAULTSERVICE_ENABLED = stackConfiguration.selectedServices.has("vaultservice")
+        envValues.KUBERNETES_CICD_TOKEN = stackConfiguration.kubernetesCicdToken
+
+        for(const [tokenName, token] of Object.entries(stackConfiguration.cicdTokens))
+            envValues[tokenName] = token
+    }
+
     if(serviceName === "testservice") {
         envValues.BOOTSTRAP_TOKEN = stackConfiguration.bootstrapToken
         envValues.SERVICE_SECRET_TEST = stackConfiguration.serviceSecrets.test
@@ -295,6 +305,27 @@ function isEnvExample(fileName) {
     const pathParts = fileName.split("/")
 
     return pathParts.length === 2 && pathParts[1] === ".env.example"
+}
+
+export function readRepositoryFile(fileName, file) {
+    const name = fileName.split("/").pop()
+    const extension = name.substring(name.lastIndexOf(".")).toLowerCase()
+    const textFileNames = [
+        "Dockerfile", "Jenkinsfile", "LICENSE", "mvnw",
+        ".dockerignore", ".gitignore", ".gitattributes", ".editorconfig"
+    ]
+    const textExtensions = [
+        ".java", ".xml", ".properties", ".json",
+        ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
+        ".css", ".html", ".svg", ".md", ".txt", ".csv",
+        ".yml", ".yaml", ".sh", ".bash", ".bat", ".cmd", ".ps1",
+        ".py", ".env", ".conf", ".ini", ".toml", ".sql"
+    ]
+
+    if(name.startsWith(".env") || textFileNames.includes(name) || textExtensions.includes(extension))
+        return file.async("text")
+
+    return file.async("nodebuffer")
 }
 
 export function shouldRemoveCicdFile(fileName, CICD) {
@@ -360,8 +391,13 @@ app.post('/batch-download', async (req, res) => {
                     if(shouldRemoveCicdFile(fileName, CICD))
                         continue
 
-                    if (/\.jar$/.test(fileName) || /\.png$/.test(fileName)) {
-                        zip.file(fileName, await file.async('nodebuffer'))
+                    if(file.dir)
+                        continue
+
+                    const repositoryFileContent = await readRepositoryFile(fileName, file)
+
+                    if(Buffer.isBuffer(repositoryFileContent)) {
+                        zip.file(fileName, repositoryFileContent)
                         continue
                     }
 
@@ -387,7 +423,7 @@ app.post('/batch-download', async (req, res) => {
 
                     if (!file.dir) {
                         try {
-                            let fileContent = await file.async("text")
+                            let fileContent = repositoryFileContent
 
                             fileContent = fileContent.replaceAll("com.strangequark", projectGroup)
                             fileContent = fileContent.replaceAll("21-alpine", javaVersion + "-alpine")

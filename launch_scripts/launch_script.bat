@@ -50,18 +50,18 @@ for /D %%F in (*) do (
     echo %%~nxF | findstr /I /B /C:"loggerservice" >nul && set "skip=1"
 
     if !skip!==0 if exist "%%F\docker-compose.yml" (
-        echo Starting docker-compose in %%F
+        echo Starting docker compose in %%F
         set "testEnvFile="
         if !foundTest!==1 (
             echo %%~nxF | findstr /I /B /C:"authservice" >nul && set "testEnvFile=--env-file .env.test"
             echo %%~nxF | findstr /I /B /C:"gatewayservice" >nul && set "testEnvFile=--env-file .env.test"
         )
-        start "%%~nxF" cmd /c "cd /d %%F && docker-compose !testEnvFile! up --build"
+        start "%%~nxF" cmd /c "cd /d %%F && docker compose !testEnvFile! up --build"
     )
 )
 
 if !foundTest!==0 (
-    if !foundLogger!==1 start "loggerservice" cmd /c "cd /d !loggerFolder! && docker-compose up --build"
+    if !foundLogger!==1 start "loggerservice" cmd /c "cd /d !loggerFolder! && docker compose up --build"
     goto :EOF
 )
 
@@ -73,10 +73,10 @@ if !foundReact!==1 call :WaitForHealthy react-service
 if !foundGateway!==1 call :WaitForHealthy gateway-service
 
 pushd "!testFolder!"
-call docker-compose up --build --abort-on-container-exit
+call docker compose up --build --abort-on-container-exit
 set "testExitCode=!errorlevel!"
-call docker-compose logs --no-color > test-service.log
-call docker-compose down -v
+call docker compose logs --no-color > test-service.log
+call docker compose down -v
 popd
 
 if not !testExitCode! EQU 0 (
@@ -84,7 +84,7 @@ if not !testExitCode! EQU 0 (
     goto :Teardown
 )
 
-if !foundLogger!==1 start "loggerservice" cmd /c "cd /d !loggerFolder! && docker-compose up --build"
+if !foundLogger!==1 start "loggerservice" cmd /c "cd /d !loggerFolder! && docker compose up --build"
 if !foundLogger!==1 call :WaitForHealthy logger-service
 
 echo Testservice passed.
@@ -118,7 +118,7 @@ goto :HealthLoop
 for /D %%F in (*) do (
     if exist "%%F\docker-compose.yml" (
         pushd "%%F"
-        call docker-compose down -v
+        call docker compose down -v
         popd
     )
 )
